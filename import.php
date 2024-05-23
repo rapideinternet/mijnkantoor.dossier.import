@@ -1,19 +1,60 @@
 <?php
 
-$bearerToken = '...';
-$tenant = 'jab9vr74pkr46e87';
-$baseURL = 'https://v2.api.mijnkantoorapp.nl/v1';
-$rootDir = 'vxakb5kmx6woqy9p';
+loadEnv('.env');
+
+$bearerToken = getenv('BEARER_TOKEN');
+$tenant = getenv('TENANT');
+$baseURL = getenv('BASE_URL');
+$rootDir = getenv('ROOT_DIR');
+$dryRun = filter_var(getenv('DRY_RUN'), FILTER_VALIDATE_BOOLEAN);
+$customerFolderPath = getenv('CUSTOMER_FOLDER_PATH');
 
 $customersCache = [];
+$storageCache = [];
+$directoryContentsCache = [];
+
+function loadEnv($file)
+{
+    if (!file_exists($file)) {
+        throw new Exception("$file does not exist.");
+    }
+
+    $lines = file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) {
+            continue;
+        }
+        list($key, $value) = explode('=', $line, 2);
+        putenv(sprintf('%s=%s', trim($key), trim($value)));
+    }
+}
+
 function fillCustomersCache()
 {
-    global $bearerToken, $tenant, $baseURL, $customersCache;
+    global $customersCache, $dryRun;
+
+    if ($dryRun) {
+        $customersCache = ['1234' => 'cust_1', '5678' => 'cust_2'];
+        return;
+    }
+
+    $response = makeApiCall('GET', '/customers?limit=10000');
+    $customersCache = array_column(@json_decode($response, true)['data'], 'id', 'number');
+
+    if (!$customersCache) {
+        echo "Error fetching customers: " . $response . "\n";
+        exit(1);
+    }
+}
+
+function makeApiCall($method, $endpoint, $data = null)
+{
+    global $bearerToken, $tenant, $baseURL;
 
     $curl = curl_init();
 
-    curl_setopt_array($curl, [
-        CURLOPT_URL => $baseURL . '/customers?limit=10000',
+    $options = [
+        CURLOPT_URL => $baseURL . $endpoint,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_ENCODING => '',
         CURLOPT_MAXREDIRS => 10,
@@ -21,36 +62,36 @@ function fillCustomersCache()
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
         CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_CUSTOMREQUEST => 'GET',
+        CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_HTTPHEADER => [
             'Accept: application/json',
             'Authorization: Bearer ' . $bearerToken,
             'X-Tenant: ' . $tenant,
         ],
-    ]);
+    ];
+
+    if ($data) {
+        $options[CURLOPT_POSTFIELDS] = $data;
+    }
+
+    curl_setopt_array($curl, $options);
 
     $response = curl_exec($curl);
-
     curl_close($curl);
 
-    $customersCache = array_column(@json_decode($response, true)['data'], 'id', 'number');
+    return $response;
 }
 
-// Placeholder function for translating customer number to customer ID
 function getCustomerId($customerNumber)
 {
-    echo "Translating customer number $customerNumber to customer ID.\n";
-
     global $customersCache;
 
     return $customersCache[$customerNumber] ?? null;
 }
 
-
-// Placeholder for creating directory in MijnKantoor
 function createDirectoryAtMijnKantoor($dirName, $customerId, $parentId, $isLeaf = false)
 {
-    global $bearerToken, $tenant, $baseURL;
+    global $dryRun;
 
     echo "Creating directory '$dirName' at MijnKantoor under parent ID $parentId";
 
@@ -60,7 +101,9 @@ function createDirectoryAtMijnKantoor($dirName, $customerId, $parentId, $isLeaf 
         echo " with isLeaf=false.\n";
     }
 
-    $curl = curl_init();
+    if ($dryRun) {
+        return 'mock_id_' . uniqid();
+    }
 
     $data = [
         'name' => $dirName,
@@ -70,32 +113,11 @@ function createDirectoryAtMijnKantoor($dirName, $customerId, $parentId, $isLeaf 
         'allow_non_global_children' => '1',
     ];
 
-    curl_setopt_array($curl, [
-        CURLOPT_URL => $baseURL . '/customers/' . $customerId . '/dossier_directories',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => $data,
-        CURLOPT_HTTPHEADER => [
-            'Accept: application/json',
-            'Authorization: Bearer ' . $bearerToken,
-            'X-Tenant: ' . $tenant,
-        ],
-    ]);
-
-    $response = curl_exec($curl);
-
-    curl_close($curl);
+    $response = makeApiCall('POST', '/customers/' . $customerId . '/dossier_directories', $data);
 
     $result = @json_decode($response, true)['data']['id'] ?? null;
 
-    if(!$result)
-    {
+    if (!$result) {
         echo "Error creating directory: " . $response . "\n";
     }
 
@@ -104,6 +126,12 @@ function createDirectoryAtMijnKantoor($dirName, $customerId, $parentId, $isLeaf 
 
 function containsFilesAndDirs($dir)
 {
+    global $directoryContentsCache;
+
+    if (isset($directoryContentsCache[$dir])) {
+        return $directoryContentsCache[$dir];
+    }
+
     $files = false;
     $dirs = false;
     foreach (new DirectoryIterator($dir) as $item) {
@@ -117,64 +145,43 @@ function containsFilesAndDirs($dir)
             $files = true;
         }
         if ($files && $dirs) {
+            $directoryContentsCache[$dir] = true;
             return true;
         }
     }
+    $directoryContentsCache[$dir] = false;
     return false;
 }
 
-// Upload file to MijnKantoor
 function uploadFileToMijnKantoor($customerId, $folderId, $filePath)
 {
-    global $bearerToken, $tenant;
+    global $bearerToken, $tenant, $dryRun;
 
     echo "Uploading file $filePath to MijnKantoor under customer ID $customerId and folder ID $folderId.\n";
 
-    $curl = curl_init();
+    if ($dryRun) {
+        return 'mock_upload_id_' . uniqid();
+    }
 
-    curl_setopt_array($curl, [
-        CURLOPT_URL => 'https://v2.api.mijnkantoorapp.nl/v1/dossier_items?include=creator%2Cpipeline_transitions',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_ENCODING => '',
-        CURLOPT_MAXREDIRS => 10,
-        CURLOPT_TIMEOUT => 0,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_CUSTOMREQUEST => 'POST',
-        CURLOPT_POSTFIELDS => [
-            'customer_id' => $customerId,
-            'dossier_directory_id' => $folderId,
-            'name' => basename($filePath),
-            'resource' => new CURLFILE($filePath),
-            'is_public' => '0',
-            'suppress_async' => '1',
-            'resource_type' => 's3'
-        ],
-        CURLOPT_HTTPHEADER => [
-            'Accept: application/json',
-            'Authorization: Bearer ' . $bearerToken,
-            'X-Tenant: ' . $tenant
-        ],
-    ]);
+    $data = [
+        'customer_id' => $customerId,
+        'dossier_directory_id' => $folderId,
+        'name' => basename($filePath),
+        'resource' => new CURLFILE($filePath),
+        'is_public' => '0',
+        'suppress_async' => '1',
+        'resource_type' => 's3'
+    ];
 
-    $response = curl_exec($curl);
+    $response = makeApiCall('POST', '/dossier_items?include=creator%2Cpipeline_transitions', $data);
 
-    curl_close($curl);
-
-    return @json_decode($response, true)['data'] || null;
+    return @json_decode($response, true)['data'] ?? null;
 }
 
-// Recursive directory traversal and processing
 function processCustomerFolder($path, $baseFolderPath)
 {
     $customerNumber = getCustomerNumber(basename($path));
     $customerId = getCustomerId($customerNumber);
-
-    if($customerNumber !== '8168')
-    {
-        return;
-    }
 
     if (!$customerId) {
         echo "Warning: Customer ID not found for customer number $customerNumber.\n";
@@ -191,9 +198,8 @@ function processCustomerFolder($path, $baseFolderPath)
 
             echo $item->getPath() . " is hybrid: " . ($isHybridDir ? "true" : "false") . "\n";
 
-            $folderId = handleDirectory($parentPath, $customerId, !$isHybridDir);  // Ensure we have an ID for the parent directory
+            $folderId = handleDirectory($parentPath, $customerId, !$isHybridDir);
 
-            // if the folder contains both files and directories, we need to create a directory in MijnKantoor to store the files
             if ($isHybridDir) {
                 $parentId  = $folderId;
                 $parentPath = getRelativePath($item->getPath() . '/Overige', $baseFolderPath);
@@ -210,30 +216,24 @@ function processCustomerFolder($path, $baseFolderPath)
     }
 }
 
-// Extract customer number from folder name
 function getCustomerNumber($folderName)
 {
     preg_match('/^\d+/', $folderName, $matches);
     return $matches[0];
 }
 
-// Get the relative path of a directory based on the base customer folder path
 function getRelativePath($path, $base)
 {
-    return substr($path, strlen($base) + 1);  // Remove the base path and leading slash
+    return substr($path, strlen($base) + 1);
 }
 
-// Handle directory creation/check in MijnKantoor and store/retrieve ID
 function handleDirectory($relativePath, $customerId, $forceLeaf = null)
 {
     global $rootDir;
 
-    // Split the path into parts to handle parent directories
     $pathParts = explode(DIRECTORY_SEPARATOR, $relativePath);
     $currentPath = "";
-    $parentId = $rootDir; // Start from the root directory
-
-    // Skip the first part as it is the customer root directory
+    $parentId = $rootDir;
     $isFirstPart = true;
 
     foreach ($pathParts as $index => $part) {
@@ -243,16 +243,10 @@ function handleDirectory($relativePath, $customerId, $forceLeaf = null)
             continue;
         }
 
-        if ($currentPath === "") {
-            $currentPath = $part;
-        } else {
-            $currentPath .= DIRECTORY_SEPARATOR . $part;
-        }
+        $currentPath = $currentPath ? $currentPath . DIRECTORY_SEPARATOR . $part : $part;
 
         $isLeaf = ($index === count($pathParts) - 1);
-
-        if($isLeaf && $forceLeaf !== null)
-        {
+        if ($isLeaf && $forceLeaf !== null) {
             $isLeaf = $forceLeaf;
         }
 
@@ -266,26 +260,33 @@ function handleDirectory($relativePath, $customerId, $forceLeaf = null)
     return $parentId;
 }
 
-// Store folder ID with its path in storage
 function putInStorage($relativePath, $folderId)
 {
-    $storageFile = "storage.txt";
-    $content = "$relativePath:$folderId\n";
-    file_put_contents($storageFile, $content, FILE_APPEND);
+    global $storageCache;
+
+    $storageCache[$relativePath] = $folderId;
+    file_put_contents("storage.txt", "$relativePath:$folderId\n", FILE_APPEND);
 }
 
-// Retrieve folder ID from storage
 function getFromStorage($relativePath)
 {
+    global $storageCache;
+
+    if (isset($storageCache[$relativePath])) {
+        return $storageCache[$relativePath];
+    }
+
     $storageFile = "storage.txt";
     if (!file_exists($storageFile)) {
-        file_put_contents($storageFile, "");  // Create storage file if it doesn't exist
+        file_put_contents($storageFile, "");
         return null;
     }
+
     $lines = file($storageFile);
     foreach ($lines as $line) {
         list($path, $id) = explode(':', trim($line));
         if ($path == $relativePath) {
+            $storageCache[$relativePath] = $id;
             return $id;
         }
     }
@@ -294,26 +295,17 @@ function getFromStorage($relativePath)
 
 fillCustomersCache();
 
-// Example of usage
-$customerFolderPath = "q:\Naar MijnKantoor";
 $folders = [];
 
+// Collect customer folders
 foreach (new DirectoryIterator($customerFolderPath) as $folder) {
     if ($folder->isDir() && !$folder->isDot()) {
         $folders[] = $folder->getPathname();
     }
 }
 
-// Process in reverse order
-$index = 0;
-$startFromIndex = 0;
+// Process folders in reverse order
 foreach (array_reverse($folders) as $index => $folderPath) {
-    // start from
-    if ($index < $startFromIndex) {
-        continue;
-    }
-
-    echo "Processing folder $folderPath ($index)\n";
-
+    echo "Processing folder $folderPath (index: $index)\n";
     processCustomerFolder($folderPath, $customerFolderPath);
 }
