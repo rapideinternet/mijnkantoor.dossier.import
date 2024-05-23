@@ -24,7 +24,7 @@ directories, and maintain a cache to optimize performance.
    Copy the provided `.env.example` to `.env` and fill in your specific configuration details.
 
     ```sh
-    cp .env.example .env
+    cp .env.example_root .env
     ```
 
 3. **Set up the `.env` file** with your specific configuration details.
