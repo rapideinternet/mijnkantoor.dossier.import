@@ -38,6 +38,7 @@ directories, and maintain a cache to optimize performance.
 - `BASE_URL`: The base URL for the MijnKantoor API.
 - `ROOT_DIR`: The root directory ID where all directories will be created.
 - `DRY_RUN`: Set to `true` to simulate API interactions without making actual changes.
+- `CUSTOMER_FOLDER_PATH`: The path to the customer folders on the local machine.
 
 **Note**: The `ROOT_DIR` should have `allow_non_global_children` set to `true` to allow the creation of non-global
 directories.
