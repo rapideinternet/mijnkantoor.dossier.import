@@ -34,7 +34,7 @@ function fillCustomersCache()
     global $customersCache, $dryRun;
 
     if ($dryRun) {
-        $customersCache = ['1234' => 'cust_1', '5678' => 'cust_2'];
+        $customersCache = ['1000' => 'cust_1', '1001' => 'cust_2'];
         return;
     }
 
