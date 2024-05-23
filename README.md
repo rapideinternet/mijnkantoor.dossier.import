@@ -1,4 +1,4 @@
-# MijnKantoor Directory and File Management Script
+# MijnKantoor Dossier Import for Custom Directories
 
 This PHP script automates the process of creating directories and uploading files to MijnKantoor, utilizing the
 MijnKantoor API. It is designed to efficiently handle customer directories, check for the presence of files and
