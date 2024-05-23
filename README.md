@@ -1,8 +1,10 @@
 # MijnKantoor Dossier Import for Custom Directories
 
-This PHP script automates the process of creating directories and uploading files to MijnKantoor, utilizing the
-MijnKantoor API. It is designed to efficiently handle customer directories, check for the presence of files and
-directories, and maintain a cache to optimize performance.
+The purpose of this script is to automate the import of a hierarchical directory structure and files into MijnKantoor.
+The script will create directories on the remote server and upload files as specified in the local directory structure.
+When the script encounters directories that contain both files and subdirectories, it will create a directory called
+'overig' and upload the loose files to that directory because of the limitation that MijnKantoor only allows files
+to be placed in side directories that have the is_leaf flag set to true.
 
 ## Prerequisites
 
@@ -53,14 +55,6 @@ ROOT_DIR=vxakb5kmx6woqy9p
 DRY_RUN=false
 CUSTOMER_FOLDER_PATH=example_root
 ```
-
-## Purpose
-
-The purpose of this script is to automate the import of a hierarchical directory structure and files into MijnKantoor.
-The script will create directories on the remote server and upload files as specified in the local directory structure.
-When the script encounters directories that contain both files and subdirectories, it will create a directory called
-'overig' and upload the loose files to that directory because of the limitation that MijnKantoor only allows files
-to be placed in side directories that have the is_leaf flag set to true.
 
 ## Usage
 
