@@ -51,6 +51,7 @@ TENANT=jab9vr74pkr46e87
 BASE_URL=https://v2.api.mijnkantoorapp.nl/v1
 ROOT_DIR=vxakb5kmx6woqy9p
 DRY_RUN=false
+CUSTOMER_FOLDER_PATH=example_root
 ```
 
 ## Purpose
