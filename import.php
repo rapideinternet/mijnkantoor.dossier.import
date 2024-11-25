@@ -9,6 +9,11 @@ $rootDir = getenv('ROOT_DIR');
 $dryRun = filter_var(getenv('DRY_RUN'), FILTER_VALIDATE_BOOLEAN);
 $customerFolderPath = getenv('CUSTOMER_FOLDER_PATH');
 
+if(is_dir($customerFolderPath) === false) {
+    echo "Customer folder path does not exist.\n";
+    exit(1);
+}
+
 $customersCache = [];
 $storageCache = [];
 $directoryContentsCache = [];
@@ -173,7 +178,7 @@ function uploadFileToMijnKantoor($customerId, $folderId, $filePath)
         'resource_type' => 's3'
     ];
 
-    $response = makeApiCall('POST', '/dossier_items?include=creator%2Cpipeline_transitions', $data);
+    $response = makeApiCall('POST', '/dossier_items', $data);
 
     return @json_decode($response, true)['data'] ?? null;
 }
