@@ -88,9 +88,18 @@ class ApiClient
             ['name' => 'suppress_async', 'contents' => '1'],
         ];
 
-        $response = $this->call('post', '/dossier_items', $data, 'multipart');
-        var_dump($response);
-        return $response->data->id ?? null;
+        // try catch and try three times
+        $tries = 0;
+        do {
+            try {
+                $response = $this->call('post', '/dossier_items', $data, 'multipart');
+                return $response->data->id ?? null;
+            } catch (\Exception $e) {
+                $tries++;
+            }
+        } while ($tries < 3);
+
+        throw new \Exception('Error uploading dossier item: ' . $dossierItem->filename);
     }
 
     public function allCustomerByNumber($limit = 10000): array

@@ -6,10 +6,10 @@ interface FilesystemContract {
     /**
      * Generator function to traverse the directory structure and return the path of each file.
      *
-     * @param string $path
-     * @return array
+     * @param string|null $root
+     * @return \Generator
      */
-    public function traverse(string $folder = null) : \Generator;
+    public function traverse(string $root = null) : \Generator;
 
     /* @description List items and convert to array of File or Directory objects
      * @param string|null $folder

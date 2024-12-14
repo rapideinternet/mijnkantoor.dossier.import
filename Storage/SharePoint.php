@@ -10,6 +10,10 @@ class SharePoint implements FilesystemContract
 
     protected $accessToken;
     protected $tokenExpiresAt;
+    /**
+     * @var string[]
+     */
+    protected array $processedItems = [];
 
     public function __construct(protected array $config = [])
     {
@@ -84,60 +88,66 @@ class SharePoint implements FilesystemContract
 
     /**
      * @description Traverse the SharePoint drive and yield files not directories
-     * @param string|null $folder
+     * @param string|null $root
      * @return \Generator
      * @throws GuzzleException
      */
-    public function traverse(string $folder = null): \Generator
+    public function traverse(string $root = null): \Generator
     {
         $siteId = $this->config['site_id'] ?? null;
         $debug = $this->config['debug'] ?? false;
 
         $driveId = $this->getDriveId($siteId);
 
-        if ($folder !== '/') {
-            $folderId = $this->getFolderIdFromPath($driveId, $folder);
+        // take of where we left off by skipping the already processed directories
+        $this->loadProcessedItemLog();
+
+        if ($root !== '/') {
+            $folderId = $this->getFolderIdFromPath($driveId, $root);
         }
 
-        $queue = [$folderId ?? 'root']; // Start from the root if folderId is not provided
+        yield from $this->fetchFilesRecursively($root, $driveId, $folderId);
+    }
 
-        while (!empty($queue)) {
-            $currentFolder = array_shift($queue);
-            $response = $this->call('get', "drives/$driveId/items/$currentFolder/children");
-            $items = json_decode($response->getBody()->getContents(), true)['value'];
+    protected function fetchFilesRecursively($root, $driveId, $folderId): \Generator
+    {
+        $filesUrl = "https://graph.microsoft.com/v1.0/drives/$driveId/items/$folderId/children";
 
-            foreach ($items as $item) {
-                // get the full path left of the root: path
-                $dir = explode('root:', $item['parentReference']['path'])[1];
+        do {
+            $response = $this->call('get', $filesUrl);
+            $response = json_decode($response->getBody()->getContents(), true);
 
-                if ($debug) {
-                    echo $dir . PHP_EOL;
+            foreach ($response['value'] as $item) {
+
+                echo "Processing: " . $item['parentReference']['path'] . "/" . $item['name'] . "\n";
+
+                if ($this->directoryProcessed($item['id'])) {
+                    echo "\tSkipping (already processed)\n";
+                    continue;
                 }
 
                 if ($item['folder'] ?? false) {
-                    // skip folders with 0 child count
-                    if ($item['folder']['childCount'] === 0) {
-                        continue;
-                    }
-
-                    // dont queue when folder is in blacklist
-                    if (in_array($dir, $this->config['blacklist'] ?? [])) {
-                        continue;
-                    }
-
-                    $queue[] = $item['id'];
+                    // If it's a folder, recursively yield its contents
+                    yield from $this->fetchFilesRecursively($root, $driveId, $item['id']);
                 } else {
-                    $file = new File(
+                    $dir = explode('root:', $item['parentReference']['path'])[1];
+
+                    // If it's a file, yield it
+                    yield new File(
                         filename: $item['name'],
                         absolutePath: $dir,
-                        relativePath: substr($dir, strlen($folder) + 1),
+                        relativePath: substr($dir, strlen($root) + 1),
                         id: $item['id'],
                     );
-
-                    yield ($file);
                 }
+
+                $this->addItemToProcessedLog($item['id']);
             }
-        }
+
+            // Check for next page
+            $filesUrl = $response['@odata.nextLink'] ?? null;
+
+        } while ($filesUrl);
     }
 
     /* @description List items and convert to array of File or Directory objects
@@ -154,29 +164,37 @@ class SharePoint implements FilesystemContract
             $folderId = $this->getFolderIdFromPath($driveId, $folder);
         }
 
-        $response = $this->call("get","drives/$driveId/items/$folderId/children");
-        $items = json_decode($response->getBody()->getContents(), true)['value'];
+        $url = "drives/$driveId/items/$folderId/children";
 
-        foreach ($items as $item) {
-            $dir = explode('root:', $item['parentReference']['path'])[1];
+        do {
+            $response = $this->call("get", $url);
+            $data = json_decode($response->getBody()->getContents(), true);
+            $items = $data['value'];
 
-            if ($item['folder'] ?? false) {
-                $entry = new Directory(
-                    dirname: $item['name'],
-                    absolutePath: $dir,
-                    relativePath: substr($dir, strlen($folder) + 1)
-                );
-            } else {
-                $entry = new File(
-                    filename: $item['name'],
-                    absolutePath: $dir,
-                    relativePath: substr($dir, strlen($folder) + 1),
-                    id: $item['id'],
-                );
+            foreach ($items as $item) {
+                $dir = explode('root:', $item['parentReference']['path'])[1];
+
+                if ($item['folder'] ?? false) {
+                    $entry = new Directory(
+                        dirname: $item['name'],
+                        absolutePath: $dir,
+                        relativePath: substr($dir, strlen($folder) + 1)
+                    );
+                } else {
+                    $entry = new File(
+                        filename: $item['name'],
+                        absolutePath: $dir,
+                        relativePath: substr($dir, strlen($folder) + 1),
+                        id: $item['id'],
+                    );
+                }
+
+                yield ($entry);
             }
 
-            yield ($entry);
-        }
+            // Check for nextLink to continue pagination
+            $url = $data['@odata.nextLink'] ?? null;
+        } while ($url);
     }
 
     /**
@@ -230,7 +248,51 @@ class SharePoint implements FilesystemContract
         $siteId = $this->config['site_id'] ?? null;
         $driveId = $this->getDriveId($siteId);
 
-        $response = $this->call("get", "drives/$driveId/items/{$file->id}/content");
-        return $response->getBody()->getContents();
+        // try catch try 3 times
+        $tries = 0;
+        do {
+            try {
+                $response = $this->call("get", "drives/$driveId/items/{$file->id}/content");
+                return $response->getBody()->getContents();
+            } catch (Exception $e) {
+                $tries++;
+            }
+        } while ($tries < 3);
+
+        throw new Exception("Error fetching content for file: {$file->filename}");
     }
+
+    protected function getProcessedItemsLogPath()
+    {
+        return 'processed_items-' . $this->config['site_id'] . '.log';
+    }
+
+    protected function loadProcessedItemLog(): void
+    {
+        $path = $this->getProcessedItemsLogPath();
+
+        if (!file_exists($path)) {
+            $this->processedItems = [];
+            return;
+        }
+
+        echo "Warning: Loading processed items log from previous run, processing will continue from where it left off\n";
+
+        $this->processedItems = explode("\n", trim(file_get_contents($path)));
+    }
+
+    protected function addItemToProcessedLog($dir): void
+    {
+        // also add to memory to avoid reading the file again
+        $this->processedItems[] = $dir;
+
+        // save to file
+        file_put_contents($this->getProcessedItemsLogPath(), $dir . "\n", FILE_APPEND);
+    }
+
+    public function directoryProcessed($dir): bool
+    {
+        return in_array($dir, $this->processedItems);
+    }
+
 }

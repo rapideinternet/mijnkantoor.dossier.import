@@ -20,31 +20,36 @@ class Local implements FilesystemContract
     }
 
 
-    public function traverse(string $folder = null): \Generator
+    public function traverse(string $root = null): \Generator
     {
-        if (!is_dir($folder)) {
-            throw new InvalidArgumentException("The provided path is not a directory: $folder");
+        if (!is_dir($root)) {
+            throw new InvalidArgumentException("The provided path is not a directory: $root");
         }
 
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator(
-                $folder,
+                $root,
                 FilesystemIterator::SKIP_DOTS
             )
         );
 
         foreach ($iterator as $item) {
+            try {
+                $path = str_replace('\\', '/', $item->getPath());
 
-            if($this->config['debug'] ?? false) {
-                echo $item->getFilename() . PHP_EOL;
-            }
+                if ($this->config['debug'] ?? false) {
+                    echo $path . '/' . $item->getFilename() . PHP_EOL;
+                }
 
-            if ($item->isFile()) {
-                yield new File(
-                    filename: $item->getFilename(),
-                    absolutePath: $item->getPath(),
-                    relativePath: substr($item->getPath(), strlen($folder) + 1),
-                );
+                if ($item->isFile()) {
+                    yield new File(
+                        filename: $item->getFilename(),
+                        absolutePath: $path,
+                        relativePath: substr($path, strlen($folder) + 1),
+                    );
+                }
+            } catch (Exception $e) {
+                echo 'Warning: ' . $e->getMessage() . PHP_EOL;
             }
         }
     }

@@ -22,7 +22,7 @@ $fileSystem = new SharePoint([
     'client_secret' => $_ENV['GRAPH_CLIENT_SECRET'],
     'site_id' => $_ENV['GRAPH_SITE_ID'],
     'token_url' => $_ENV['GRAPH_TOKEN_URL'],
-//    'debug' => true,
+    'debug' => true,
     'blacklist' => [
 
     ],
@@ -31,6 +31,8 @@ $fileSystem = new SharePoint([
 //$fileSystem = new Local([
 //    'debug' => false,
 //]);
+//
+
 
 // read mapping from csv file (first col is source, second col is dest), seperator is ';'
 $mapping = (new CsvMapper('/Users/rensreinders/Desktop/groeneboe/mapping.csv'))->getMapping();
@@ -50,22 +52,36 @@ $mkClient = new ApiClient([
     'base_uri' => $_ENV['MK_BASE_URI'],
 ]);
 
+
+
 $mutators = [
-    new CustomerNumberByRegex('/\/Documenten\/(\d+)\/.*/m'), // e.g. "{number} - {name}" of "/Dossier/{number}"
+    new CustomerNumberByRegex('/\/Documenten\/(\d+(?:-\d+)?)\/.*/m'), // e.g. "{number} - {name}" of "/Dossier/{number}"
     new YearFromSourcePath(),
     new YearFromFilename(),
     new DestDirFromMapping($mapping),
 ];
 
-$storage = new DocumentMigrator(
+$migrator = new DocumentMigrator(
     fileSystem: $fileSystem,
     mkClient: $mkClient,
     mutators: $mutators,
     customerWhitelist: [
-        '10316'
-    ]
+//        '10431'
+    ],
+    customerBlacklist: [
+//        '00001',
+//        '10316'
+    ],
 );
 
-//$storage->generateMappingTemplate("/Documenten");
+//$migrator->generateMappingTemplate(
+//    root: "/Users/rensreinders/Desktop/rosier",
+//    customerDirPattern: '/^\d+\/(\d+)(.*)/m',
+//    outputFile: "/Users/rensreinders/Desktop/rosier/mapping.csv"
+//);
 
-$storage->migrate("/Documenten");
+
+
+$migrator->migrate(
+    root: "/Documenten",
+);
