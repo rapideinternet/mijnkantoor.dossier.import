@@ -45,7 +45,7 @@ class Local implements FilesystemContract
                     yield new File(
                         filename: $item->getFilename(),
                         absolutePath: $path,
-                        relativePath: substr($path, strlen($folder) + 1),
+                        relativePath: substr($path, strlen($root) + 1),
                     );
                 }
             } catch (Exception $e) {
@@ -53,37 +53,37 @@ class Local implements FilesystemContract
             }
         }
     }
-
-    public function list(string $folder = null): \Generator
-    {
-        if (!is_dir($folder)) {
-            throw new InvalidArgumentException("The provided path is not a directory: $folder");
-        }
-
-        $iterator = new DirectoryIterator($folder);
-
-        foreach ($iterator as $item) {
-            if ($item->isDot()) {
-                continue;
-            }
-
-            if ($item->isDir()) {
-                yield new Directory(
-                    dirname: $item->getFilename(),
-                    absolutePath: $item->getPath(),
-                    relativePath: substr($item->getPath(), strlen($folder) + 1),
-                );
-            }
-
-            if ($item->isFile()) {
-                yield new File(
-                    filename: $item->getFilename(),
-                    absolutePath: $item->getPath(),
-                    relativePath: substr($item->getPath(), strlen($folder) + 1),
-                );
-            }
-        }
-    }
+//
+//    public function list(string $folder = null): \Generator
+//    {
+//        if (!is_dir($folder)) {
+//            throw new InvalidArgumentException("The provided path is not a directory: $folder");
+//        }
+//
+//        $iterator = new DirectoryIterator($folder);
+//
+//        foreach ($iterator as $item) {
+//            if ($item->isDot()) {
+//                continue;
+//            }
+//
+//            if ($item->isDir()) {
+//                yield new Directory(
+//                    dirname: $item->getFilename(),
+//                    absolutePath: $item->getPath(),
+//                    relativePath: substr($item->getPath(), strlen($folder) + 1),
+//                );
+//            }
+//
+//            if ($item->isFile()) {
+//                yield new File(
+//                    filename: $item->getFilename(),
+//                    absolutePath: $item->getPath(),
+//                    relativePath: substr($item->getPath(), strlen($folder) + 1),
+//                );
+//            }
+//        }
+//    }
 
     public function getContent(File $file): string
     {

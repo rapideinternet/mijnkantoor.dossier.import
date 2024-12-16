@@ -3,6 +3,7 @@
 use Exception;
 use MijnKantoor\ApiClient;
 use MijnKantoor\DossierItem;
+use Storage\Directory;
 use Storage\File;
 
 class DocumentMigrator
@@ -104,7 +105,7 @@ class DocumentMigrator
             // translate the customer number to customer id
             $customerId = $customers[$dossierItem->customerNumber] ?? null;
 
-            if(!$customerId) {
+            if (!$customerId) {
                 echo "Warning: customer not found for number: " . $dossierItem->customerNumber . PHP_EOL;
                 continue;
             }
@@ -117,10 +118,10 @@ class DocumentMigrator
             $id = $this->mkClient->uploadDossierItem($dossierItem, $content);
 
             if (!$id) {
-                echo "\t Failed to upload file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $dossierDirectory->id . PHP_EOL;
+                echo "\t Failed to upload file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
                 break;
             } else {
-                echo "\t Uploaded file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $dossierDirectory->id . PHP_EOL;
+                echo "\t Uploaded file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
             }
 
         }

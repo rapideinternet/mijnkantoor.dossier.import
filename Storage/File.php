@@ -1,6 +1,6 @@
 <?php namespace Storage;
 
-class File {
+class File Implements FileSystemEntryContract {
     public function __construct(
         public $filename,
         public $absolutePath,
@@ -14,5 +14,10 @@ class File {
     public function __toString()
     {
         return $this->relativePath . '/' . $this->filename;
+    }
+
+    public function getRelativePath(): string
+    {
+        return $this->relativePath;
     }
 }

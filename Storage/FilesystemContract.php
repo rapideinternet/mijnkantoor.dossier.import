@@ -10,12 +10,12 @@ interface FilesystemContract {
      * @return \Generator
      */
     public function traverse(string $root = null) : \Generator;
-
-    /* @description List items and convert to array of File or Directory objects
-     * @param string|null $folder
-     * @return \Generator
-     */
-    public function list(string $folder = null) : \Generator;
+//
+//    /* @description List items and convert to array of File or Directory objects
+//     * @param string|null $folder
+//     * @return \Generator
+//     */
+//    public function list(string $folder = null) : \Generator;
 
     /**
      * @description Get the content of a file

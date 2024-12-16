@@ -121,7 +121,7 @@ class SharePoint implements FilesystemContract
 
                 echo "Processing: " . $item['parentReference']['path'] . "/" . $item['name'] . "\n";
 
-                if ($this->directoryProcessed($item['id'])) {
+                if ($this->itemProcessed($item['id'])) {
                     echo "\tSkipping (already processed)\n";
                     continue;
                 }
@@ -290,7 +290,7 @@ class SharePoint implements FilesystemContract
         file_put_contents($this->getProcessedItemsLogPath(), $dir . "\n", FILE_APPEND);
     }
 
-    public function directoryProcessed($dir): bool
+    public function itemProcessed($dir): bool
     {
         return in_array($dir, $this->processedItems);
     }
