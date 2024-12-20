@@ -43,7 +43,7 @@ class DocumentMigrator
                 }
 
                 // match first number starting with 20 and exactly 4 digits
-                // replace first occurence of 20\d{2} with {year}
+                // replace first occurrence of 20\d{2} with {year}
                 // @todo, make dynamic
                 $relativePath = preg_replace('/20\d{2}/', '{year}', $relativePath, 1);
 
@@ -80,6 +80,9 @@ class DocumentMigrator
             foreach ($this->mutators as $mutator) {
                 $dossierItem = $mutator->handle($file, $dossierItem);
             }
+
+            var_dump($dossierItem);
+            continue;
 
             // if customer whitelist is set, skip all other customers
             if (count($this->customerWhitelist) && !in_array($dossierItem->customerNumber, $this->customerWhitelist)) {
@@ -123,9 +126,7 @@ class DocumentMigrator
             } else {
                 echo "\t Uploaded file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
             }
-
         }
-
 
         return true;
     }

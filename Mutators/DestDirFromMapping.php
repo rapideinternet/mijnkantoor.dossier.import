@@ -7,7 +7,7 @@ use Storage\File;
 
 class DestDirFromMapping implements MutatorContract
 {
-    public function __construct(protected Mapping $mapping)
+    public function __construct(protected Mapping $mapping, protected $fallBackDir = null)
     {
 
     }
@@ -35,6 +35,11 @@ class DestDirFromMapping implements MutatorContract
                 $dossierItem->destDir = $destDir;
                 return $dossierItem;
             }
+        }
+
+        // when no mapping is found, use the fallback dir
+        if($this->fallBackDir) {
+            $dossierItem->destDir = $this->fallBackDir;
         }
 
         return $dossierItem;

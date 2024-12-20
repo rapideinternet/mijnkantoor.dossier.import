@@ -85,7 +85,7 @@ class ApiClient
             ['name' => 'name', 'contents' => $dossierItem->filename],
             ['name' => 'year', 'contents' => $dossierItem->year],
             ['name' => 'period', 'contents' => $dossierItem->period],
-            ['name' => 'suppress_async', 'contents' => '1'],
+            ['name' => 'suppress_async', 'contents' => '1'], // prevents heavy directory calculations on the server
         ];
 
         // try catch and try three times

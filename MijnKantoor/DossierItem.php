@@ -15,15 +15,6 @@ class DossierItem
 
     }
 
-    public function isValid(): bool
-    {
-        $required = ['customerNumber', 'year'];
-
-        return array_reduce($required, function ($carry, $item) {
-            return $carry && !empty($this->$item);
-        }, true);
-    }
-
     public function __toString(): string
     {
         $string = 'DossierItem (destDir=' . $this->destDir . ')';

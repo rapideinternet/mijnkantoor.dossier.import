@@ -149,53 +149,53 @@ class SharePoint implements FilesystemContract
 
         } while ($filesUrl);
     }
-
-    /* @description List items and convert to array of File or Directory objects
-     * @param string|null $folder
-     * @return \Generator
-     * @throws GuzzleException
-     */
-    public function list(string $folder = null): \Generator
-    {
-        $siteId = $this->config['site_id'] ?? null;
-        $driveId = $this->getDriveId($siteId);
-
-        if ($folder !== '/') {
-            $folderId = $this->getFolderIdFromPath($driveId, $folder);
-        }
-
-        $url = "drives/$driveId/items/$folderId/children";
-
-        do {
-            $response = $this->call("get", $url);
-            $data = json_decode($response->getBody()->getContents(), true);
-            $items = $data['value'];
-
-            foreach ($items as $item) {
-                $dir = explode('root:', $item['parentReference']['path'])[1];
-
-                if ($item['folder'] ?? false) {
-                    $entry = new Directory(
-                        dirname: $item['name'],
-                        absolutePath: $dir,
-                        relativePath: substr($dir, strlen($folder) + 1)
-                    );
-                } else {
-                    $entry = new File(
-                        filename: $item['name'],
-                        absolutePath: $dir,
-                        relativePath: substr($dir, strlen($folder) + 1),
-                        id: $item['id'],
-                    );
-                }
-
-                yield ($entry);
-            }
-
-            // Check for nextLink to continue pagination
-            $url = $data['@odata.nextLink'] ?? null;
-        } while ($url);
-    }
+//
+//    /* @description List items and convert to array of File or Directory objects
+//     * @param string|null $folder
+//     * @return \Generator
+//     * @throws GuzzleException
+//     */
+//    public function list(string $folder = null): \Generator
+//    {
+//        $siteId = $this->config['site_id'] ?? null;
+//        $driveId = $this->getDriveId($siteId);
+//
+//        if ($folder !== '/') {
+//            $folderId = $this->getFolderIdFromPath($driveId, $folder);
+//        }
+//
+//        $url = "drives/$driveId/items/$folderId/children";
+//
+//        do {
+//            $response = $this->call("get", $url);
+//            $data = json_decode($response->getBody()->getContents(), true);
+//            $items = $data['value'];
+//
+//            foreach ($items as $item) {
+//                $dir = explode('root:', $item['parentReference']['path'])[1];
+//
+//                if ($item['folder'] ?? false) {
+//                    $entry = new Directory(
+//                        dirname: $item['name'],
+//                        absolutePath: $dir,
+//                        relativePath: substr($dir, strlen($folder) + 1)
+//                    );
+//                } else {
+//                    $entry = new File(
+//                        filename: $item['name'],
+//                        absolutePath: $dir,
+//                        relativePath: substr($dir, strlen($folder) + 1),
+//                        id: $item['id'],
+//                    );
+//                }
+//
+//                yield ($entry);
+//            }
+//
+//            // Check for nextLink to continue pagination
+//            $url = $data['@odata.nextLink'] ?? null;
+//        } while ($url);
+//    }
 
     /**
      * @throws GuzzleException
