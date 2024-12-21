@@ -1,6 +1,7 @@
 <?php namespace Migration;
 
 use Exception;
+use Exceptions\CustomerNotFoundException;
 use MijnKantoor\ApiClient;
 use MijnKantoor\DossierItem;
 use Storage\Directory;
@@ -78,11 +79,13 @@ class DocumentMigrator
 
             // run the mutators to enrich the dossierItem object
             foreach ($this->mutators as $mutator) {
-                $dossierItem = $mutator->handle($file, $dossierItem);
+                try {
+                    $dossierItem = $mutator->handle($file, $dossierItem);
+                } catch (CustomerNotFoundException) {
+                    echo "Warning: customer not found for file: " . $file->relativePath . PHP_EOL;
+                    continue;
+                }
             }
-
-            var_dump($dossierItem);
-            continue;
 
             // if customer whitelist is set, skip all other customers
             if (count($this->customerWhitelist) && !in_array($dossierItem->customerNumber, $this->customerWhitelist)) {

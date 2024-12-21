@@ -1,6 +1,7 @@
 <?php namespace MijnKantoor;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 
 class ApiClient
 {
@@ -14,7 +15,7 @@ class ApiClient
         }
     }
 
-    public function call($method, $url, $data = [], $encode = 'json')
+    public function call($method, $url, $data = [], $encode = 'json', $tries = 1, $async = false)
     {
         $client = new Client();
 
@@ -34,10 +35,49 @@ class ApiClient
 
         $url = trim($this->config['base_uri'], '/') . '/' . trim($url, '/');
 
-        $response = $client->request($method, $url, $options);
+        $attempt = 0;
+        $lastException = null;
 
-        return @json_decode($response->getBody()->getContents()) ?? null;
+        $makeRequest = function () use ($client, $method, $url, $options, $tries, $async, &$attempt, &$lastException, &$makeRequest) {
+            $attempt++;
+
+            try {
+                if ($async) {
+                    return $client->requestAsync($method, $url, $options)->then(
+                        function ($response) {
+                            return @json_decode($response->getBody()->getContents()) ?? null;
+                        },
+                        function ($exception) {
+                            throw $exception;
+                        }
+                    );
+                } else {
+                    $response = $client->request($method, $url, $options);
+                    return @json_decode($response->getBody()->getContents()) ?? null;
+                }
+            } catch (RequestException $e) {
+                $lastException = $e;
+                if ($attempt < $tries) {
+                    return $makeRequest(); // Retry
+                }
+                throw $e; // Exhausted retries
+            }
+        };
+
+        if ($async) {
+            // Async mode returns a promise
+            return $makeRequest();
+        } else {
+            // Synchronous mode
+            try {
+                return $makeRequest();
+            } catch (RequestException $e) {
+                // Log the exception or handle it as needed
+                throw $lastException ?? $e;
+            }
+        }
     }
+
 
     public function allDirectoriesWithParentAndPath($limit = 1000): array
     {
@@ -92,7 +132,8 @@ class ApiClient
         $tries = 0;
         do {
             try {
-                $response = $this->call('post', '/dossier_items', $data, 'multipart');
+                // don't wait for the response (run async)
+                $response = $this->call('post', '/dossier_items', $data, 'multipart', 3, true);
                 return $response->data->id ?? null;
             } catch (\Exception $e) {
                 $tries++;

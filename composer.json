@@ -9,7 +9,8 @@
             "Migration\\": "Migration/",
             "Mutators\\": "Mutators/",
             "MijnKantoor\\": "MijnKantoor/",
-            "Mapping\\": "Mapping/"
+            "Mapping\\": "Mapping/",
+            "Exceptions\\": "Exceptions/"
         }
     }
 }

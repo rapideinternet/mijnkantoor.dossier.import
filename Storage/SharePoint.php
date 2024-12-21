@@ -278,13 +278,13 @@ class SharePoint implements FilesystemContract
 
         echo "Warning: Loading processed items log from previous run, processing will continue from where it left off\n";
 
-        $this->processedItems = explode("\n", trim(file_get_contents($path)));
+        $this->processedItems = array_flip(explode("\n", trim(file_get_contents($path))));
     }
 
     protected function addItemToProcessedLog($dir): void
     {
         // also add to memory to avoid reading the file again
-        $this->processedItems[] = $dir;
+        $this->processedItems[$dir] = time();
 
         // save to file
         file_put_contents($this->getProcessedItemsLogPath(), $dir . "\n", FILE_APPEND);
@@ -292,7 +292,7 @@ class SharePoint implements FilesystemContract
 
     public function itemProcessed($dir): bool
     {
-        return in_array($dir, $this->processedItems);
+        return isset($this->processedItems[$dir]);
     }
 
 }
