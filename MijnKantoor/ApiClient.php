@@ -25,6 +25,7 @@ class ApiClient
                 'Accept' => 'application/json',
                 'X-Tenant' => $this->config['tenant'],
             ],
+            'verify' => false, // Disable SSL verification for older windows servers
         ];
 
         match ($encode) {
@@ -106,7 +107,7 @@ class ApiClient
         $result = [];
         foreach ($directories as $dir) {
             $path = $buildPath($dir->id);
-            $result[$path] = new DossierDirectory(
+            $result[strtolower($path)] = new DossierDirectory(
                 id: $dir->id,
                 parent_id: $dir->parent_id,
                 name: $dir->name,
@@ -133,7 +134,7 @@ class ApiClient
         do {
             try {
                 // don't wait for the response (run async)
-                $response = $this->call('post', '/dossier_items', $data, 'multipart', 3, true);
+                $response = $this->call('post', '/dossier_items', $data, 'multipart', 3, false);
                 return $response->data->id ?? null;
             } catch (\Exception $e) {
                 $tries++;
@@ -145,7 +146,7 @@ class ApiClient
 
     public function allCustomerByNumber($limit = 10000): array
     {
-        $response = $this->call('get', '/customers?limit=' . $limit);
+        $response = $this->call('get', '/customers?all=1&limit=' . $limit);
 
         foreach ($response->data as $customer) {
             // skip the ones without number

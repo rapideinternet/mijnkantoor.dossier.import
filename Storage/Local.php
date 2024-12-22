@@ -34,11 +34,17 @@ class Local implements FilesystemContract
             new RecursiveDirectoryIterator(
                 $root,
                 FilesystemIterator::SKIP_DOTS
-            )
+            ),
+            RecursiveIteratorIterator::SELF_FIRST // also include the directories
         );
 
         foreach ($iterator as $item) {
-            $logKey = $item->getPath() . '/' . $item->getFilename();
+
+            $logKey = $item->getPath();
+
+            if ($item->isFile()) {
+               $logKey .= '/' . $item->getFilename();
+            }
 
             if ($this->itemProcessed($logKey)) {
                 echo "\tSkipping (already processed)\n";
@@ -52,7 +58,10 @@ class Local implements FilesystemContract
                     echo $path . '/' . $item->getFilename() . PHP_EOL;
                 }
 
-                if ($item->isFile()) {
+                if($item->isDir()) {
+                    $logKey = $item->getPath();
+                }
+                elseif ($item->isFile()) {
                     yield new File(
                         filename: $item->getFilename(),
                         absolutePath: $path,

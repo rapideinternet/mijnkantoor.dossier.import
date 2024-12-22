@@ -1,6 +1,7 @@
 <?php namespace Mutators;
 
 use Exception;
+use Exceptions\CustomerNotFoundException;
 use Mapping\Mapping;
 use MijnKantoor\DossierItem;
 use Storage\File;
@@ -15,10 +16,10 @@ class DestDirFromMapping implements MutatorContract
     public function handle(File $file, DossierItem $dossierItem): DossierItem
     {
         if (!$dossierItem->customerNumber) {
-            throw new Exception('Customer number not set, run a mutator that sets the customer number first.');
+            throw new CustomerNotFoundException("No customer number set while determining destination directory");
         }
 
-        // trim the part from the beginning up untill the last encounter of the customer number
+        // trim the part from the beginning up until the last encounter of the customer number
         $path = substr($file->relativePath, strrpos($file->relativePath, $dossierItem->customerNumber) + strlen($dossierItem->customerNumber));
 
         // trim slashes from the path
