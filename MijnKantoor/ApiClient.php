@@ -15,7 +15,12 @@ class ApiClient
             }
         }
 
-        $this->multiUploader = new MultiUploader($this->config['base_uri'] . '/dossier_items', $this->getOptions()['headers']);
+        // This allows us to upload multiple files concurrently
+        $this->multiUploader = new MultiUploader(
+            url: $this->config['base_uri'] . '/dossier_items',
+            headers: $this->getOptions()['headers'],
+            maxConcurrency: $this->config['max_concurrency'] ?? 3,
+        );
     }
 
     protected function getOptions(): array
@@ -85,35 +90,13 @@ class ApiClient
         return $result;
     }
 
-    public function uploadDossierItem(DossierItem $dossierItem, string $content)
-    {
-        $data = [
-            ['name' => 'resource', 'contents' => $content, 'filename' => $dossierItem->filename],
-            ['name' => 'customer_id', 'contents' => $dossierItem->customerId],
-            ['name' => 'dossier_directory_id', 'contents' => $dossierItem->destDirId],
-            ['name' => 'name', 'contents' => $dossierItem->filename],
-            ['name' => 'year', 'contents' => $dossierItem->year],
-            ['name' => 'period', 'contents' => $dossierItem->period],
-            ['name' => 'suppress_async', 'contents' => '1'], // prevents heavy directory calculations on the server
-        ];
-
-        // try catch and try three times
-        $tries = 0;
-        do {
-            try {
-                $response = $this->call('post', '/dossier_items', $data, 'multipart');
-                return $response->data->id ?? null;
-            } catch (\Exception $e) {
-                $tries++;
-            }
-        } while ($tries < 3);
-
-        throw new \Exception('Error uploading dossier item: ' . $dossierItem->filename);
-    }
-
     public function uploadAsync(array $data): void
     {
-        $this->multiUploader->addRequest($data);
+        $multipartData = array_map(function ($key, $value) {
+            return ['name' => $key, 'contents' => $value];
+        }, array_keys($data), $data);
+
+        $this->multiUploader->addRequest($multipartData);
     }
 
     public function finalizeUploads(): void

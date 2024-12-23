@@ -128,17 +128,15 @@ class DocumentMigrator
                 continue;
             }
 
-            $this->mkClient->uploadAsync(
-                [
-                    ['name' => 'resource', 'contents' => $content, 'filename' => $dossierItem->filename],
-                    ['name' => 'customer_id', 'contents' => $dossierItem->customerId],
-                    ['name' => 'dossier_directory_id', 'contents' => $dossierItem->destDirId],
-                    ['name' => 'name', 'contents' => $dossierItem->filename],
-                    ['name' => 'year', 'contents' => $dossierItem->year],
-                    ['name' => 'period', 'contents' => $dossierItem->period],
-                    ['name' => 'suppress_async', 'contents' => '1'], // prevents heavy directory calculations on the server
-                ]
-            );
+            $this->mkClient->uploadAsync([
+                'resource' => $content,
+                'customer_id' => $dossierItem->customerId,
+                'dossier_directory_id' => $dossierItem->destDirId,
+                'name' => $dossierItem->filename,
+                'year' => $dossierItem->year,
+                'period' => $dossierItem->period,
+                'suppress_async' => '1', // prevents heavy directory calculations on the server
+            ]);
 
             // when this is the first time this customer dir is encountered, do a little sleep to prevent hammering the server
             // when sharepoint is called to soon after first attempt, duplicate folders will be created
