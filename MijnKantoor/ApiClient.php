@@ -1,10 +1,11 @@
 <?php namespace MijnKantoor;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 
 class ApiClient
 {
+    private MultiUploader $multiUploader;
+
     public function __construct(protected $config)
     {
         $required = ['access_token', 'tenant'];
@@ -13,20 +14,26 @@ class ApiClient
                 throw new \Exception("Missing required config key: $key");
             }
         }
+
+        $this->multiUploader = new MultiUploader($this->config['base_uri'] . '/dossier_items', $this->getOptions());
     }
 
-    public function call($method, $url, $data = [], $encode = 'json', $tries = 1, $async = false)
+    protected function getOptions(): array
     {
-        $client = new Client();
-
-        $options = [
+        return [
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->config['access_token'],
                 'Accept' => 'application/json',
                 'X-Tenant' => $this->config['tenant'],
             ],
-            'verify' => false, // Disable SSL verification for older windows servers
+            'verify' => $this->config['verify_ssl'] ?? true,
         ];
+    }
+
+    public function call($method, $url, $data = [], $encode = 'json')
+    {
+        $client = new Client();
+        $options = $this->getOptions();
 
         match ($encode) {
             'json' => $options['json'] = $data,
@@ -36,49 +43,10 @@ class ApiClient
 
         $url = trim($this->config['base_uri'], '/') . '/' . trim($url, '/');
 
-        $attempt = 0;
-        $lastException = null;
+        $response = $client->request($method, $url, $options);
 
-        $makeRequest = function () use ($client, $method, $url, $options, $tries, $async, &$attempt, &$lastException, &$makeRequest) {
-            $attempt++;
-
-            try {
-                if ($async) {
-                    return $client->requestAsync($method, $url, $options)->then(
-                        function ($response) {
-                            return @json_decode($response->getBody()->getContents()) ?? null;
-                        },
-                        function ($exception) {
-                            throw $exception;
-                        }
-                    );
-                } else {
-                    $response = $client->request($method, $url, $options);
-                    return @json_decode($response->getBody()->getContents()) ?? null;
-                }
-            } catch (RequestException $e) {
-                $lastException = $e;
-                if ($attempt < $tries) {
-                    return $makeRequest(); // Retry
-                }
-                throw $e; // Exhausted retries
-            }
-        };
-
-        if ($async) {
-            // Async mode returns a promise
-            return $makeRequest();
-        } else {
-            // Synchronous mode
-            try {
-                return $makeRequest();
-            } catch (RequestException $e) {
-                // Log the exception or handle it as needed
-                throw $lastException ?? $e;
-            }
-        }
+        return @json_decode($response->getBody()->getContents()) ?? null;
     }
-
 
     public function allDirectoriesWithParentAndPath($limit = 1000): array
     {
@@ -133,8 +101,7 @@ class ApiClient
         $tries = 0;
         do {
             try {
-                // don't wait for the response (run async)
-                $response = $this->call('post', '/dossier_items', $data, 'multipart', 3, false);
+                $response = $this->call('post', '/dossier_items', $data, 'multipart');
                 return $response->data->id ?? null;
             } catch (\Exception $e) {
                 $tries++;
@@ -142,6 +109,16 @@ class ApiClient
         } while ($tries < 3);
 
         throw new \Exception('Error uploading dossier item: ' . $dossierItem->filename);
+    }
+
+    public function uploadAsync(array $data): void
+    {
+        $this->multiUploader->addRequest($data);
+    }
+
+    public function finalizeUploads(): void
+    {
+        $this->multiUploader->finalize();
     }
 
     public function allCustomerByNumber($limit = 10000): array

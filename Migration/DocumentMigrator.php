@@ -4,6 +4,7 @@ use Exception;
 use Exceptions\CustomerNotFoundException;
 use MijnKantoor\ApiClient;
 use MijnKantoor\DossierItem;
+use MijnKantoor\MultiUploader;
 use Storage\Directory;
 use Storage\File;
 
@@ -121,15 +122,35 @@ class DocumentMigrator
             // get the file content
             $content = $this->fileSystem->getContent($file);
 
-            $id = $this->mkClient->uploadDossierItem($dossierItem, $content);
-
-            if (!$id) {
-                echo "\t Failed to upload file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
-                break;
-            } else {
-                echo "\t Uploaded file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
+            if(strlen($content) == 0) {
+                echo "Warning: empty file: " . $file->relativePath . PHP_EOL;
+                continue;
             }
+
+            $this->mkClient->uploadAsync(
+                [
+                    ['name' => 'resource', 'contents' => $content, 'filename' => $dossierItem->filename],
+                    ['name' => 'customer_id', 'contents' => $dossierItem->customerId],
+                    ['name' => 'dossier_directory_id', 'contents' => $dossierItem->destDirId],
+                    ['name' => 'name', 'contents' => $dossierItem->filename],
+                    ['name' => 'year', 'contents' => $dossierItem->year],
+                    ['name' => 'period', 'contents' => $dossierItem->period],
+                    ['name' => 'suppress_async', 'contents' => '1'], // prevents heavy directory calculations on the server
+                ]
+            );
+
+//            $id = $this->mkClient->uploadDossierItem($dossierItem, $content);
+
+//            if (!$id) {
+//                echo "\t Failed to upload file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
+//                break;
+//            } else {
+//                echo "\t Uploaded file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
+//            }
         }
+
+        // force the multi uploader to finalize even if the queue was not full enough to start
+        $this->mkClient->finalizeUploads();
 
         return true;
     }

@@ -58,16 +58,11 @@ class Local implements FilesystemContract
                     echo $path . '/' . $item->getFilename() . PHP_EOL;
                 }
 
-                if($item->isDir()) {
-                    $logKey = $item->getPath();
-                }
-                elseif ($item->isFile()) {
-                    yield new File(
-                        filename: $item->getFilename(),
-                        absolutePath: $path,
-                        relativePath: substr($path, strlen($root) + 1),
-                    );
-                }
+                yield new File(
+                    filename: $item->getFilename(),
+                    absolutePath: $path,
+                    relativePath: substr($path, strlen($root) + 1),
+                );
             } catch (Exception $e) {
                 echo 'Warning: ' . $e->getMessage() . PHP_EOL;
             }
