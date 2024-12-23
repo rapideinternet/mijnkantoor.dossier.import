@@ -16,6 +16,7 @@ class DocumentMigrator
         protected $mutators = [],
         protected $customerWhitelist = [],
         protected $customerBlacklist = [],
+        protected $deHammerCustomerDirBuffer = []
     )
     {
 
@@ -138,6 +139,17 @@ class DocumentMigrator
                     ['name' => 'suppress_async', 'contents' => '1'], // prevents heavy directory calculations on the server
                 ]
             );
+
+            // when this is the first time this customer dir is encountered, do a little sleep to prevent hammering the server
+            // when sharepoint is called to soon after first attempt, duplicate folders will be created
+            if(!isset($this->deHammerCustomerDirBuffer[$dossierItem->customerId . $dossierItem->destDirId])) {
+                echo "Sleeping for 3 seconds to prevent hammering the server" . PHP_EOL;
+                $this->mkClient->finalizeUploads();
+                sleep(3);
+            }
+
+            $this->deHammerCustomerDirBuffer[$dossierItem->customerId . $dossierItem->destDirId] = time();
+
 
 //            $id = $this->mkClient->uploadDossierItem($dossierItem, $content);
 

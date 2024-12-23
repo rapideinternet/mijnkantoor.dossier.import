@@ -15,7 +15,7 @@ class ApiClient
             }
         }
 
-        $this->multiUploader = new MultiUploader($this->config['base_uri'] . '/dossier_items', $this->getOptions());
+        $this->multiUploader = new MultiUploader($this->config['base_uri'] . '/dossier_items', $this->getOptions()['headers']);
     }
 
     protected function getOptions(): array
