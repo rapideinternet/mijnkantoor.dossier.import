@@ -80,13 +80,13 @@ class DocumentMigrator
             );
 
             // run the mutators to enrich the dossierItem object
-            foreach ($this->mutators as $mutator) {
-                try {
+            try {
+                foreach ($this->mutators as $mutator) {
                     $dossierItem = $mutator->handle($file, $dossierItem);
-                } catch (CustomerNotFoundException) {
-                    echo "Warning: customer not found for file: " . $file->relativePath . PHP_EOL;
-                    continue;
                 }
+            } catch (CustomerNotFoundException) {
+                echo "Warning: customer not found for file: " . $file->relativePath . PHP_EOL;
+                continue;
             }
 
             // if customer whitelist is set, skip all other customers
@@ -115,6 +115,9 @@ class DocumentMigrator
 
             if (!$customerId) {
                 echo "Warning: customer not found for number: " . $dossierItem->customerNumber . PHP_EOL;
+
+                // @todo, move path to config file
+                file_put_contents("unmappable_customers.log", $dossierItem->customerNumber . PHP_EOL, FILE_APPEND);
                 continue;
             }
 
@@ -123,7 +126,7 @@ class DocumentMigrator
             // get the file content
             $content = $this->fileSystem->getContent($file);
 
-            if(strlen($content) == 0) {
+            if (strlen($content) == 0) {
                 echo "Warning: empty file: " . $file->relativePath . PHP_EOL;
                 continue;
             }
@@ -140,7 +143,7 @@ class DocumentMigrator
 
             // when this is the first time this customer dir is encountered, do a little sleep to prevent hammering the server
             // when sharepoint is called to soon after first attempt, duplicate folders will be created
-            if(!isset($this->deHammerCustomerDirBuffer[$dossierItem->customerId . $dossierItem->destDirId])) {
+            if (!isset($this->deHammerCustomerDirBuffer[$dossierItem->customerId . $dossierItem->destDirId])) {
                 echo "Sleeping for 3 seconds to prevent hammering the server" . PHP_EOL;
                 $this->mkClient->finalizeUploads();
                 sleep(3);
