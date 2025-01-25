@@ -3,8 +3,8 @@
 class File Implements FileSystemEntryContract {
     public function __construct(
         public $filename,
-        public $absolutePath,
-        public $relativePath,
+        public $absolutePath, // this is the full path from the root of the filesystem
+        public $relativePath, // this is relative to the root of the action
         public $id = null // only for cloud storage
     )
     {

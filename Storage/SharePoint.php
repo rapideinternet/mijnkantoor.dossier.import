@@ -10,10 +10,8 @@ class SharePoint implements FilesystemContract
 
     protected $accessToken;
     protected $tokenExpiresAt;
-    /**
-     * @var string[]
-     */
-    protected array $processedItems = [];
+
+    use ProcessedLogTrait;
 
     public function __construct(protected array $config = [])
     {
@@ -57,6 +55,7 @@ class SharePoint implements FilesystemContract
             }
 
             $this->accessToken = $responseBody['access_token'];
+
             $this->tokenExpiresAt = time() + $responseBody['expires_in'];
         } catch (RequestException $e) {
             throw new Exception('Error fetching token: ' . $e->getMessage());
@@ -102,9 +101,7 @@ class SharePoint implements FilesystemContract
         // take of where we left off by skipping the already processed directories
         $this->loadProcessedItemLog();
 
-        if ($root !== '/') {
-            $folderId = $this->getFolderIdFromPath($driveId, $root);
-        }
+        $folderId = $this->getFolderIdFromPath($driveId, $root);
 
         yield from $this->fetchFilesRecursively($root, $driveId, $folderId);
     }
@@ -149,53 +146,6 @@ class SharePoint implements FilesystemContract
 
         } while ($filesUrl);
     }
-//
-//    /* @description List items and convert to array of File or Directory objects
-//     * @param string|null $folder
-//     * @return \Generator
-//     * @throws GuzzleException
-//     */
-//    public function list(string $folder = null): \Generator
-//    {
-//        $siteId = $this->config['site_id'] ?? null;
-//        $driveId = $this->getDriveId($siteId);
-//
-//        if ($folder !== '/') {
-//            $folderId = $this->getFolderIdFromPath($driveId, $folder);
-//        }
-//
-//        $url = "drives/$driveId/items/$folderId/children";
-//
-//        do {
-//            $response = $this->call("get", $url);
-//            $data = json_decode($response->getBody()->getContents(), true);
-//            $items = $data['value'];
-//
-//            foreach ($items as $item) {
-//                $dir = explode('root:', $item['parentReference']['path'])[1];
-//
-//                if ($item['folder'] ?? false) {
-//                    $entry = new Directory(
-//                        dirname: $item['name'],
-//                        absolutePath: $dir,
-//                        relativePath: substr($dir, strlen($folder) + 1)
-//                    );
-//                } else {
-//                    $entry = new File(
-//                        filename: $item['name'],
-//                        absolutePath: $dir,
-//                        relativePath: substr($dir, strlen($folder) + 1),
-//                        id: $item['id'],
-//                    );
-//                }
-//
-//                yield ($entry);
-//            }
-//
-//            // Check for nextLink to continue pagination
-//            $url = $data['@odata.nextLink'] ?? null;
-//        } while ($url);
-//    }
 
     /**
      * @throws GuzzleException
@@ -224,16 +174,19 @@ class SharePoint implements FilesystemContract
     function getFolderIdFromPath($driveId, $relativePath): string
     {
         try {
-            // prefix path with / if not already
-            if ($relativePath[0] !== '/') {
-                $relativePath = '/' . $relativePath;
+            // prefix path with / if not already and not root
+            if ($relativePath == '/') {
+                $relativePath = '';
+            }
+            elseif ($relativePath[0] !== '/'){
+                $relativePath = ':/' . $relativePath;
             }
 
             // Replace spaces with %20 for URL encoding
             $encodedPath = str_replace(' ', '%20', $relativePath);
 
             // Resolve the folder ID by path
-            $response = $this->call("get", "drives/$driveId/root:$encodedPath");
+            $response = $this->call("get", "drives/$driveId/root$encodedPath");
             $data = json_decode($response->getBody()->getContents(), true);
 
             // Return the folder ID
@@ -261,38 +214,4 @@ class SharePoint implements FilesystemContract
 
         throw new Exception("Error fetching content for file: {$file->filename}");
     }
-
-    protected function getProcessedItemsLogPath()
-    {
-        return 'processed_items-' . $this->config['site_id'] . '.log';
-    }
-
-    protected function loadProcessedItemLog(): void
-    {
-        $path = $this->getProcessedItemsLogPath();
-
-        if (!file_exists($path)) {
-            $this->processedItems = [];
-            return;
-        }
-
-        echo "Warning: Loading processed items log from previous run, processing will continue from where it left off\n";
-
-        $this->processedItems = array_flip(explode("\n", trim(file_get_contents($path))));
-    }
-
-    protected function addItemToProcessedLog($dir): void
-    {
-        // also add to memory to avoid reading the file again
-        $this->processedItems[$dir] = time();
-
-        // save to file
-        file_put_contents($this->getProcessedItemsLogPath(), $dir . "\n", FILE_APPEND);
-    }
-
-    public function itemProcessed($dir): bool
-    {
-        return isset($this->processedItems[$dir]);
-    }
-
 }

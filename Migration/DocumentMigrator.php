@@ -4,9 +4,6 @@ use Exception;
 use Exceptions\CustomerNotFoundException;
 use MijnKantoor\ApiClient;
 use MijnKantoor\DossierItem;
-use MijnKantoor\MultiUploader;
-use Storage\Directory;
-use Storage\File;
 
 class DocumentMigrator
 {
@@ -16,7 +13,8 @@ class DocumentMigrator
         protected $mutators = [],
         protected $customerWhitelist = [],
         protected $customerBlacklist = [],
-        protected $deHammerCustomerDirBuffer = []
+        protected $deHammerCustomerDirBuffer = [],
+        protected bool $dryRun = true
     )
     {
 
@@ -26,9 +24,11 @@ class DocumentMigrator
     {
         $uniqueFolders = [];
 
-        try {
-            // @todo: fix resume support
+        if (file_exists($outputFile)) {
+            $uniqueFolders = array_flip(file($outputFile, FILE_IGNORE_NEW_LINES));
+        }
 
+        try {
             foreach ($this->fileSystem->traverse($root) as $file) {
                 preg_match($customerDirPattern, $file->relativePath, $matches);
 
@@ -37,10 +37,13 @@ class DocumentMigrator
                     continue;
                 }
 
-                $customerDir = $matches[1];
-                $relativePath = $matches[2];
 
-                if (!$customerDir) {
+                $customerIdentifier = $matches[1];
+                $customerName = $matches[2];
+                $relativePath = $matches[3];
+
+
+                if (!$customerIdentifier) {
                     echo "Warning: no customer dir found for file: " . $file->relativePath . PHP_EOL;
                     continue;
                 }
@@ -55,6 +58,7 @@ class DocumentMigrator
                 echo "path: '" . $path . "'" . PHP_EOL;
 
                 if (!isset($uniqueFolders[$path])) {
+                    var_dump("writing to file: " . $outputFile);
                     file_put_contents($outputFile, $path . PHP_EOL, FILE_APPEND);
                     $uniqueFolders[$path] = $file->relativePath;
                 }
@@ -101,6 +105,12 @@ class DocumentMigrator
                 continue;
             }
 
+            // when destDir = '-' skip this file
+            if ($dossierItem->destDir == '-') {
+                echo "Dir was explicitly set to skip: " . $file->relativePath . PHP_EOL;
+                continue;
+            }
+
             // target folder needs to be set by now
             if (!$dossierItem->destDir) {
                 throw new Exception('Destination dir not set for file: ' . $file);
@@ -131,6 +141,14 @@ class DocumentMigrator
                 continue;
             }
 
+            echo "Uploading file: " . $file->relativePath . " to customer: " . $dossierItem->customerNumber . " in dir: " . $dossierItem->destDir . PHP_EOL;
+
+            // when dry run is set, skip the actual upload
+            if ($this->dryRun) {
+                continue;
+            }
+
+            // upload the file to MijnKantoor asynchronously
             $this->mkClient->uploadAsync([
                 'resource' => $content,
                 'customer_id' => $dossierItem->customerId,
@@ -150,16 +168,6 @@ class DocumentMigrator
             }
 
             $this->deHammerCustomerDirBuffer[$dossierItem->customerId . $dossierItem->destDirId] = time();
-
-
-//            $id = $this->mkClient->uploadDossierItem($dossierItem, $content);
-
-//            if (!$id) {
-//                echo "\t Failed to upload file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
-//                break;
-//            } else {
-//                echo "\t Uploaded file: '" . $file->relativePath . "/" . $file->filename . "' to '" . $dossierItem->destDir . "' with id: " . $id . PHP_EOL;
-//            }
         }
 
         // force the multi uploader to finalize even if the queue was not full enough to start

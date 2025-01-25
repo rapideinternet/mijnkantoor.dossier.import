@@ -5,17 +5,22 @@ use Exceptions\CustomerNotFoundException;
 use MijnKantoor\DossierItem;
 use Storage\File;
 
-class CustomerNumberByRegex implements MutatorContract
+class CustomerNumberAndRelativePathByRegex implements MutatorContract
 {
+    use ValidateCustomerAndPathRegexTrait;
+
     public function __construct(protected string $pattern)
     {
-
+        $this->validateCustomerAndPathRegex($pattern);
     }
 
     public function handle(File $file, DossierItem $dossierItem): DossierItem
     {
         if (preg_match($this->pattern, $file->absolutePath, $matches)) {
-            $dossierItem->customerNumber = $matches[count($matches) - 1];
+            $dossierItem->customerNumber = ltrim($matches['number'], '0');
+
+            $dossierItem->relativeSourceDir = $matches['relativePath'];
+
 
             return $dossierItem;
         }

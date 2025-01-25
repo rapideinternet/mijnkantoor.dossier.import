@@ -92,6 +92,7 @@ class ApiClient
 
     public function uploadAsync(array $data): void
     {
+        // convert data to multipart format
         $multipartData = array_map(function ($key, $value) {
             return ['name' => $key, 'contents' => $value];
         }, array_keys($data), $data);
@@ -117,7 +118,7 @@ class ApiClient
             $customers[$customer->number] = new Customer(
                 id: $customer->id,
                 name: $customer->name,
-                number: $customer->number
+                number: ltrim($customer->number, '0'),
             );
         }
 

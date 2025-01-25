@@ -8,6 +8,8 @@ use Storage\File;
 
 class DestDirFromMapping implements MutatorContract
 {
+
+
     public function __construct(protected Mapping $mapping, protected $fallBackDir = null)
     {
 
@@ -19,11 +21,13 @@ class DestDirFromMapping implements MutatorContract
             throw new CustomerNotFoundException("No customer number set while determining destination directory");
         }
 
-        // trim the part from the beginning up until the last encounter of the customer number
-        $path = substr($file->relativePath, strrpos($file->relativePath, $dossierItem->customerNumber) + strlen($dossierItem->customerNumber));
+        if (!$dossierItem->relativeSourceDir) {
+            throw new Exception("No relative source directory set while determining destination directory");
+        }
 
         // trim slashes from the path
-        $path = trim($path, '/') . '/';
+        $path = trim($dossierItem->relativeSourceDir, '/') . '/';
+
 
         // find the mapping
         foreach ($this->mapping->getMapping() as $sourceDir => $destDir) {

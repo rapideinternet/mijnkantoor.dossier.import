@@ -11,9 +11,9 @@ use RecursiveIteratorIterator;
 
 class Local implements FilesystemContract
 {
-    private Client $client;
+    use ProcessedLogTrait;
 
-    protected $processedItems = [];
+    private Client $client;
 
     public function __construct(protected array $config = [])
     {
@@ -76,38 +76,5 @@ class Local implements FilesystemContract
     public function getContent(File $file): string
     {
         return file_get_contents($file->absolutePath . '/' . $file->filename);
-    }
-
-    protected function loadProcessedItemLog(): void
-    {
-        $path = $this->getProcessedItemsLogPath();
-
-        if (!file_exists($path)) {
-            $this->processedItems = [];
-            return;
-        }
-
-        echo "Warning: Loading processed items log from previous run, processing will continue from where it left off\n";
-
-        $this->processedItems = array_flip(explode("\n", trim(file_get_contents($path))));
-    }
-
-    protected function getProcessedItemsLogPath()
-    {
-        return 'processed_items.log';
-    }
-
-    protected function addItemToProcessedLog($dir): void
-    {
-        // also add to memory to avoid reading the file again
-        $this->processedItems[$dir] = time();
-
-        // save to file
-        file_put_contents($this->getProcessedItemsLogPath(), $dir . "\n", FILE_APPEND);
-    }
-
-    public function itemProcessed($dir): bool
-    {
-        return isset($this->processedItems[$dir]);
     }
 }

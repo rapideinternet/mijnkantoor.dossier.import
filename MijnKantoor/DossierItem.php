@@ -7,6 +7,7 @@ class DossierItem
         public string|null $filename = null,
         public int|null $year = null,
         public string|null $period = null,
+        public string|null $relativeSourceDir = null, // this is the relative path starting from the customer dir
         public string|null $destDir = null,
         public string|null $destDirId = null,
         public string|null $customerId = null,
