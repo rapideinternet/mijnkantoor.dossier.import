@@ -94,7 +94,7 @@ class ApiClient
     {
         // convert data to multipart format
         $multipartData = array_map(function ($key, $value) {
-            return ['name' => $key, 'contents' => $value];
+            return ['name' => $key, 'contents' => $value, 'filename' => $key === 'resource' ? 'file' : null];
         }, array_keys($data), $data);
 
         $this->multiUploader->addRequest($multipartData);
@@ -105,9 +105,11 @@ class ApiClient
         $this->multiUploader->finalize();
     }
 
-    public function allCustomerByNumber($limit = 10000): array
+    public function allCustomerByKey($key, $limit = 10000): array
     {
         $response = $this->call('get', '/customers?all=1&limit=' . $limit);
+
+        $customers = [];
 
         foreach ($response->data as $customer) {
             // skip the ones without number
@@ -115,13 +117,24 @@ class ApiClient
                 continue;
             }
 
-            $customers[$customer->number] = new Customer(
+            if (!in_array($customer->type, ['business', 'person'])) {
+                continue;
+            }
+
+            $customer->number = ltrim($customer->number, '0');
+
+            $customers[$customer->$key] = new Customer(
                 id: $customer->id,
                 name: $customer->name,
-                number: ltrim($customer->number, '0'),
+                number: $customer->number,
             );
         }
 
         return $customers;
+    }
+
+    public function allCustomerByNumber($limit = 10000)
+    {
+        return $this->allCustomerByKey('number', $limit);
     }
 }

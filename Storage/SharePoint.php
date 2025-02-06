@@ -123,17 +123,18 @@ class SharePoint implements FilesystemContract
                     continue;
                 }
 
+                $relativePath = substr($item['parentReference']['path'], strpos($item['parentReference']['path'], ':') + 1 + strlen($root));
+                $relativePath = trim($relativePath, '/');
+
                 if ($item['folder'] ?? false) {
                     // If it's a folder, recursively yield its contents
                     yield from $this->fetchFilesRecursively($root, $driveId, $item['id']);
                 } else {
-                    $dir = explode('root:', $item['parentReference']['path'])[1];
-
                     // If it's a file, yield it
                     yield new File(
                         filename: $item['name'],
-                        absolutePath: $dir,
-                        relativePath: substr($dir, strlen($root) + 1),
+                        absolutePath: $item['parentReference']['path'],
+                        relativePath: $relativePath,
                         id: $item['id'],
                     );
                 }
@@ -177,9 +178,8 @@ class SharePoint implements FilesystemContract
             // prefix path with / if not already and not root
             if ($relativePath == '/') {
                 $relativePath = '';
-            }
-            elseif ($relativePath[0] !== '/'){
-                $relativePath = ':/' . $relativePath;
+            } else {
+                $relativePath = ':' . $relativePath;
             }
 
             // Replace spaces with %20 for URL encoding
@@ -213,5 +213,54 @@ class SharePoint implements FilesystemContract
         } while ($tries < 3);
 
         throw new Exception("Error fetching content for file: {$file->filename}");
+    }
+
+    public function list($root)
+    {
+        $siteId = $this->config['site_id'] ?? null;
+
+        $driveId = $this->getDriveId($siteId);
+
+        $folderId = $this->getFolderIdFromPath($driveId, $root);
+
+        $filesUrl = "https://graph.microsoft.com/v1.0/drives/" . $driveId . "/items/" . $folderId . "/children";
+
+
+        do {
+            $response = $this->call('get', $filesUrl);
+            $response = json_decode($response->getBody()->getContents(), true);
+
+            foreach ($response['value'] as $item) {
+
+                $relativePath = substr($item['parentReference']['path'], strpos($item['parentReference']['path'], ':') + 1 + strlen($root));
+
+                if ($item['folder'] ?? false) {
+                    // If it's a folder, recursively yield its contents
+                    yield new Directory(
+                        dirname: $item['name'],
+                        absolutePath: $item['parentReference']['path'],
+                        relativePath: $relativePath,
+                    );
+                } else {
+                    // If it's a file, yield it
+                    yield new File(
+                        filename: $item['name'],
+                        absolutePath: $item['parentReference']['path'],
+                        relativePath: $relativePath,
+                        id: $item['id'],
+                    );
+                }
+            }
+
+            // Check for next page
+            $filesUrl = $response['@odata.nextLink'] ?? null;
+
+        } while ($filesUrl);
+    }
+
+    public function sites() {
+        $response = $this->call("get", "sites?search=*");
+        $sites = json_decode($response->getBody()->getContents(), true);
+        return $sites;
     }
 }

@@ -1,5 +1,5 @@
 .idea
-.env
+cases/*
 vendor
 *.log
-migrate.php
+.DS_Store

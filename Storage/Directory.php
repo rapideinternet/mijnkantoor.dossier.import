@@ -1,6 +1,7 @@
 <?php namespace Storage;
 
-class Directory Implements FileSystemEntryContract {
+class Directory implements FileSystemEntryContract
+{
     public function __construct(
         public string $dirname,
         public string $absolutePath,
@@ -12,7 +13,7 @@ class Directory Implements FileSystemEntryContract {
 
     public function __toString()
     {
-        return $this->dirname;
+        return $this->relativePath . '/' . $this->dirname;
     }
 
     public function getRelativePath(): string

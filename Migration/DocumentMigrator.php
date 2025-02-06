@@ -32,19 +32,23 @@ class DocumentMigrator
             foreach ($this->fileSystem->traverse($root) as $file) {
                 preg_match($customerDirPattern, $file->relativePath, $matches);
 
-                if (count($matches) < 3) {
-                    echo "Warning: customer and relative path pattern not matched for file: " . $file->filename . PHP_EOL;
+                if (count($matches ?? []) < 3) {
+                    echo "Warning: customer and relative path pattern not matched for file: " . $file . PHP_EOL;
                     continue;
                 }
 
-
-                $customerIdentifier = $matches[1];
-                $customerName = $matches[2];
-                $relativePath = $matches[3];
-
+                $customerIdentifier = $matches['number'];
+                $customerName = $matches['name'];
+                $relativePath = $matches['relativePath'];
 
                 if (!$customerIdentifier) {
                     echo "Warning: no customer dir found for file: " . $file->relativePath . PHP_EOL;
+                    continue;
+                }
+
+                // if customer blacklist is set, skip all blacklisted customers
+                if (in_array($customerIdentifier, $this->customerBlacklist)) {
+                    echo "Skipping blacklisted customer: " . $customerIdentifier . PHP_EOL;
                     continue;
                 }
 
@@ -74,6 +78,7 @@ class DocumentMigrator
     public function migrate(string $root = null): bool
     {
         $targetDirectories = $this->mkClient->allDirectoriesWithParentAndPath();
+
         $customers = $this->mkClient->allCustomerByNumber();
 
         foreach ($this->fileSystem->traverse($root) as $file) {
@@ -117,7 +122,7 @@ class DocumentMigrator
             }
 
             // translate the destination directory to the id
-            $dossierDirectory = $targetDirectories[$dossierItem->destDir] ?? throw new Exception('Destination dir not found: ' . $dossierItem->destDir);
+            $dossierDirectory = $targetDirectories[strtolower($dossierItem->destDir)] ?? throw new Exception('Destination dir not found: ' . $dossierItem->destDir);
             $dossierItem->destDirId = $dossierDirectory->id;
 
             // translate the customer number to customer id
