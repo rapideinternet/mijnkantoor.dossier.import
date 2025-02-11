@@ -64,10 +64,10 @@ class MultiUploader
         $pool = new Pool($this->client, $this->pendingRequests, [
             'concurrency' => $this->maxConcurrency,
             'fulfilled' => function ($response, $key) {
-                echo "\tRequest {$key} completed\n";
+                echo "\t\tRequest {$key} completed\n";
             },
             'rejected' => function ($reason, $key) {
-                echo "\tRequest {$key} failed\n";
+                echo "\t\tRequest {$key} failed\n";
 
                 // remove new lines and add tab
                 $message = str_replace("\n", "\n\t\t", $reason->getMessage());
@@ -81,9 +81,9 @@ class MultiUploader
 
                 if ($this->attemptCounts[$key] < $this->maxRetryAttempts) {
                     $this->failedRequests[$key] = $this->pendingRequests[$key];
-                    echo "\tRequeued request {$key} (attempt {$this->attemptCounts[$key]})\n";
+                    echo "\t\tRequeued request {$key} (attempt {$this->attemptCounts[$key]})\n";
                 } else {
-                    echo "\tRequest {$key} failed after {$this->attemptCounts[$key]} attempts\n";
+                    echo "\t\tRequest {$key} failed after {$this->attemptCounts[$key]} attempts\n";
                 }
             },
         ]);

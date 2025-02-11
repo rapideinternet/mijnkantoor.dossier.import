@@ -83,10 +83,15 @@ class ApiClient
             $result[strtolower($path)] = new DossierDirectory(
                 id: $dir->id,
                 parent_id: $dir->parent_id,
+                is_leaf: $dir->is_leaf,
                 name: $dir->name,
                 path: $path,
             );
         }
+
+        // sorty by alphabetical order
+        ksort($result);
+
         return $result;
     }
 

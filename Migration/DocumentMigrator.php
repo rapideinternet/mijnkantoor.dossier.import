@@ -1,5 +1,6 @@
 <?php namespace Migration;
 
+use Carbon\Carbon;
 use Exception;
 use Exceptions\CustomerNotFoundException;
 use MijnKantoor\ApiClient;
@@ -83,6 +84,8 @@ class DocumentMigrator
 
         foreach ($this->fileSystem->traverse($root) as $file) {
 
+            echo "Processing file: " . $file . PHP_EOL;
+
             // create the target dossier item for MijnKantoor
             $dossierItem = new DossierItem(
                 filename: $file->filename,
@@ -94,25 +97,25 @@ class DocumentMigrator
                     $dossierItem = $mutator->handle($file, $dossierItem);
                 }
             } catch (CustomerNotFoundException) {
-                echo "Warning: customer not found for file: " . $file->relativePath . PHP_EOL;
+                echo "\tWarning: customer not found for file: " . $file->absolutePath . PHP_EOL;
                 continue;
             }
 
             // if customer whitelist is set, skip all other customers
             if (count($this->customerWhitelist) && !in_array($dossierItem->customerNumber, $this->customerWhitelist)) {
-                echo "Skipping non-whitelisted customer: " . $dossierItem->customerNumber . PHP_EOL;
+                echo "\tSkipping non-whitelisted customer: " . $dossierItem->customerNumber . PHP_EOL;
                 continue;
             }
 
             // if customer blacklist is set, skip all blacklisted customers
             if (count($this->customerBlacklist) && in_array($dossierItem->customerNumber, $this->customerBlacklist)) {
-                echo "Skipping blacklisted customer: " . $dossierItem->customerNumber . PHP_EOL;
+                echo "\tSkipping blacklisted customer: " . $dossierItem->customerNumber . PHP_EOL;
                 continue;
             }
 
             // when destDir = '-' skip this file
             if ($dossierItem->destDir == '-') {
-                echo "Dir was explicitly set to skip: " . $file->relativePath . PHP_EOL;
+                echo "\tDir was explicitly set to skip: " . $file->relativePath . PHP_EOL;
                 continue;
             }
 
@@ -129,7 +132,7 @@ class DocumentMigrator
             $customerId = $customers[$dossierItem->customerNumber] ?? null;
 
             if (!$customerId) {
-                echo "Warning: customer not found for number: " . $dossierItem->customerNumber . PHP_EOL;
+                echo "\tWarning: customer not found for number: " . $dossierItem->customerNumber . PHP_EOL;
 
                 // @todo, move path to config file
                 file_put_contents("unmappable_customers.log", $dossierItem->customerNumber . PHP_EOL, FILE_APPEND);
@@ -138,18 +141,20 @@ class DocumentMigrator
 
             $dossierItem->customerId = $customerId->id;
 
+            echo "\tUploading" . PHP_EOL;
+            echo "\t\tdest customer: '" . $dossierItem->customerNumber . "'" . PHP_EOL;
+            echo "\t\tdest dir: '" . $dossierItem->destDir . "'" . PHP_EOL;
+
+            // when dry run is set, skip the actual upload
+            if ($this->dryRun) {
+                continue;
+            }
+
             // get the file content
             $content = $this->fileSystem->getContent($file);
 
             if (strlen($content) == 0) {
-                echo "Warning: empty file: " . $file->relativePath . PHP_EOL;
-                continue;
-            }
-
-            echo "Uploading file: " . $file->relativePath . " to customer: " . $dossierItem->customerNumber . " in dir: " . $dossierItem->destDir . PHP_EOL;
-
-            // when dry run is set, skip the actual upload
-            if ($this->dryRun) {
+                echo "\tWarning: empty file: " . $file->relativePath . PHP_EOL;
                 continue;
             }
 
@@ -161,6 +166,7 @@ class DocumentMigrator
                 'name' => $dossierItem->filename,
                 'year' => $dossierItem->year,
                 'period' => $dossierItem->period,
+                'created_at' => $file->createdAt ? $file->createdAt->timestamp : null,
                 'suppress_async' => '1', // prevents heavy directory calculations on the server
             ]);
 

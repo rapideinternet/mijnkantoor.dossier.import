@@ -1,23 +1,27 @@
 <?php namespace Storage;
 
-class File Implements FileSystemEntryContract {
+class File implements FileSystemEntryContract
+{
     public function __construct(
         public $filename,
         public $absolutePath, // this is the full path from the root of the filesystem
         public $relativePath, // this is relative to the root of the action
-        public $id = null // only for cloud storage
+        public $id = null, // only for cloud storage
+        public $createdAt = null
     )
     {
 
     }
 
-    public function __toString()
-    {
-        return $this->relativePath . '/' . $this->filename;
-    }
+public
+function __toString()
+{
+    return $this->relativePath . '/' . $this->filename;
+}
 
-    public function getRelativePath(): string
-    {
-        return $this->relativePath;
-    }
+public
+function getRelativePath(): string
+{
+    return $this->relativePath;
+}
 }

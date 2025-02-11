@@ -23,7 +23,7 @@ class DestDirFromRegex implements MutatorContract
 
         // if filename matches one of the regex rules in the rules array, set the destDir to the corresponding value
         foreach ($this->rules as $rule => $destDir) {
-            if (preg_match($rule, $dossierItem->relativeSourceDir)) {
+            if (preg_match($rule, $file)) {
                 $dossierItem->destDir = $destDir;
                 return $dossierItem;
             }

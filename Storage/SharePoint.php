@@ -1,5 +1,6 @@
 <?php namespace Storage;
 
+use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -94,7 +95,6 @@ class SharePoint implements FilesystemContract
     public function traverse(string $root = null): \Generator
     {
         $siteId = $this->config['site_id'] ?? null;
-        $debug = $this->config['debug'] ?? false;
 
         $driveId = $this->getDriveId($siteId);
 
@@ -110,16 +110,22 @@ class SharePoint implements FilesystemContract
     {
         $filesUrl = "https://graph.microsoft.com/v1.0/drives/$driveId/items/$folderId/children";
 
+        $debug = $this->config['debug'] ?? false;
+
         do {
             $response = $this->call('get', $filesUrl);
             $response = json_decode($response->getBody()->getContents(), true);
 
             foreach ($response['value'] as $item) {
 
-                echo "Processing: " . $item['parentReference']['path'] . "/" . $item['name'] . "\n";
+                if ($debug) {
+                    echo "Info: processing " . $item['parentReference']['path'] . "/" . $item['name'] . "\n";
+                }
 
                 if ($this->itemProcessed($item['id'])) {
-                    echo "\tSkipping (already processed)\n";
+                    if ($debug) {
+                        echo "\tWarning: Skipping (already processed)\n";
+                    }
                     continue;
                 }
 
@@ -136,6 +142,7 @@ class SharePoint implements FilesystemContract
                         absolutePath: $item['parentReference']['path'],
                         relativePath: $relativePath,
                         id: $item['id'],
+                        createdAt: Carbon::parse($item['lastModifiedDateTime']), //  intentionally
                     );
                 }
 
@@ -258,7 +265,8 @@ class SharePoint implements FilesystemContract
         } while ($filesUrl);
     }
 
-    public function sites() {
+    public function sites()
+    {
         $response = $this->call("get", "sites?search=*");
         $sites = json_decode($response->getBody()->getContents(), true);
         return $sites;
