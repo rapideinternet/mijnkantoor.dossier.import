@@ -4,7 +4,8 @@ use GuzzleHttp\Client;
 
 class ApiClient
 {
-    private MultiUploader $multiUploader;
+    protected MultiUploader $multiUploader;
+    protected array $cache = [];
 
     public function __construct(protected $config)
     {
@@ -48,13 +49,30 @@ class ApiClient
 
         $url = trim($this->config['base_uri'], '/') . '/' . trim($url, '/');
 
-        $response = $client->request($method, $url, $options);
+        try {
+            $response = $client->request($method, $url, $options);
+        } catch (\Exception $e) {
+            // if 401 or 403, prompt user to update the token
+            if ($e->getCode() === 401 || $e->getCode() === 403) {
+                throw new \Exception("Unauthorized. Please update the access token.");
+            }
+
+            throw new \Exception("Failed to call $method $url: " . $e->getMessage());
+        }
+
 
         return @json_decode($response->getBody()->getContents()) ?? null;
     }
 
     public function allDirectoriesWithParentAndPath($limit = 1000): array
     {
+        $cacheKey = 'directories_' . $limit;
+
+        // Fetch from cache if available
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
+        }
+
         // Fetch the directories
         $response = $this->call('get', '/dossier_directories?limit=' . $limit);
 
@@ -92,6 +110,9 @@ class ApiClient
         // sorty by alphabetical order
         ksort($result);
 
+        // Cache the result
+        $this->cache[$cacheKey] = $result;
+
         return $result;
     }
 
@@ -112,6 +133,13 @@ class ApiClient
 
     public function allCustomerByKey($key, $limit = 10000): array
     {
+        $cacheKey = 'customers_' . $key . '_' . $limit;
+
+        // Fetch from cache if available
+        if (isset($this->cache[$cacheKey])) {
+            return $this->cache[$cacheKey];
+        }
+
         $response = $this->call('get', '/customers?all=1&limit=' . $limit);
 
         $customers = [];
@@ -135,11 +163,19 @@ class ApiClient
             );
         }
 
+        // Cache the result
+        $this->cache[$cacheKey] = $customers;
+
         return $customers;
     }
 
     public function allCustomerByNumber($limit = 10000)
     {
         return $this->allCustomerByKey('number', $limit);
+    }
+
+    public function createCustomer($data)
+    {
+        $this->call('post', '/customers', $data);
     }
 }
