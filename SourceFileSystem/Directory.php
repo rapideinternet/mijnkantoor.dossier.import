@@ -1,4 +1,4 @@
-<?php namespace Storage;
+<?php namespace SourceFilesystem;
 
 class Directory implements FileSystemEntryContract
 {

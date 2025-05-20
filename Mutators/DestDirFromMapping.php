@@ -3,8 +3,8 @@
 use Exception;
 use Exceptions\CustomerNotFoundException;
 use Mapping\Mapping;
-use MijnKantoor\DossierItem;
-use Storage\File;
+use MijnKantoor\MappedDossierItem;
+use SourceFilesystem\File;
 
 class DestDirFromMapping implements MutatorContract
 {
@@ -15,7 +15,7 @@ class DestDirFromMapping implements MutatorContract
 
     }
 
-    public function handle(File $file, DossierItem $dossierItem): DossierItem
+    public function handle(File $file, MappedDossierItem $dossierItem): MappedDossierItem
     {
         if (!$dossierItem->customerNumber) {
             throw new CustomerNotFoundException("No customer number set while determining destination directory");

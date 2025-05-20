@@ -1,4 +1,4 @@
-<?php namespace Storage;
+<?php namespace SourceFilesystem;
 
 interface FilesystemContract {
     public function __construct(array $config = []);
@@ -9,7 +9,7 @@ interface FilesystemContract {
      * @param string|null $root
      * @return \Generator
      */
-    public function traverse(string $root = null) : \Generator;
+    public function traverse(string | null $root = null) : \Generator;
 //
 //    /* @description List items and convert to array of File or Directory objects
 //     * @param string|null $folder

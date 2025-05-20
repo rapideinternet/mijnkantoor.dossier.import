@@ -3,8 +3,8 @@
 use Exception;
 use Exceptions\CustomerNotFoundException;
 use Mapping\Mapping;
-use MijnKantoor\DossierItem;
-use Storage\File;
+use MijnKantoor\MappedDossierItem;
+use SourceFilesystem\File;
 
 class DestDirFromRegex implements MutatorContract
 {
@@ -15,7 +15,7 @@ class DestDirFromRegex implements MutatorContract
 
     }
 
-    public function handle(File $file, DossierItem $dossierItem): DossierItem
+    public function handle(File $file, MappedDossierItem $dossierItem): MappedDossierItem
     {
         if (!$dossierItem->relativeSourceDir) {
             throw new Exception("No relative source directory set while determining destination directory");

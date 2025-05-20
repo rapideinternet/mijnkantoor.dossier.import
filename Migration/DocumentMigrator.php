@@ -4,7 +4,7 @@ use Carbon\Carbon;
 use Exception;
 use Exceptions\CustomerNotFoundException;
 use MijnKantoor\ApiClient;
-use MijnKantoor\DossierItem;
+use MijnKantoor\MappedDossierItem;
 
 class DocumentMigrator
 {
@@ -76,7 +76,7 @@ class DocumentMigrator
         return true;
     }
 
-    public function migrate(string $root = null): bool
+    public function migrate(string | null $root = null): bool
     {
         $targetDirectories = $this->mkClient->allDirectoriesWithParentAndPath();
 
@@ -87,7 +87,7 @@ class DocumentMigrator
             echo "Processing file: " . $file . PHP_EOL;
 
             // create the target dossier item for MijnKantoor
-            $dossierItem = new DossierItem(
+            $dossierItem = new MappedDossierItem(
                 filename: $file->filename,
             );
 
@@ -124,10 +124,6 @@ class DocumentMigrator
                 throw new Exception('Destination dir not set for file: ' . $file);
             }
 
-            // translate the destination directory to the id
-            $dossierDirectory = $targetDirectories[strtolower($dossierItem->destDir)] ?? throw new Exception('Destination dir not found: ' . $dossierItem->destDir);
-            $dossierItem->destDirId = $dossierDirectory->id;
-
             // translate the customer number to customer id
             $customerId = $customers[$dossierItem->customerNumber] ?? null;
 
@@ -140,6 +136,10 @@ class DocumentMigrator
             }
 
             $dossierItem->customerId = $customerId->id;
+
+            // translate the destination directory to the id
+            $dossierDirectory = $targetDirectories[strtolower($dossierItem->destDir)] ?? throw new Exception('Destination dir not found: ' . $dossierItem->destDir);
+            $dossierItem->destDirId = $dossierDirectory->id;
 
             echo "\tUploading" . PHP_EOL;
             echo "\t\tdest customer: '" . $dossierItem->customerNumber . "'" . PHP_EOL;

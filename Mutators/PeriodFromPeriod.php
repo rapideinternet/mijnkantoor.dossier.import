@@ -4,7 +4,7 @@ use Exception;
 use MijnKantoor\MappedDossierItem;
 use SourceFilesystem\File;
 
-class YearFromFilename implements MutatorContract
+class PeriodFromPeriod implements MutatorContract
 {
     public function __construct()
     {
@@ -13,13 +13,7 @@ class YearFromFilename implements MutatorContract
 
     public function handle(File $file, MappedDossierItem $dossierItem): MappedDossierItem
     {
-        if ($dossierItem->year) {
-            return $dossierItem;
-        }
-
-        if (preg_match('/\b20\d{2}\b/', $file->filename, $matches)) {
-            $dossierItem->year = $matches[0];
-        }
+        $dossierItem->period = $file->period ?? null;
 
         return $dossierItem;
     }

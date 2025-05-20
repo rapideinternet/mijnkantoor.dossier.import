@@ -1,8 +1,8 @@
 <?php namespace Mutators;
 
 use Exception;
-use MijnKantoor\DossierItem;
-use Storage\File;
+use MijnKantoor\MappedDossierItem;
+use SourceFilesystem\File;
 
 class YearFromSourcePath implements MutatorContract
 {
@@ -11,7 +11,7 @@ class YearFromSourcePath implements MutatorContract
 
     }
 
-    public function handle(File $file, DossierItem $dossierItem): DossierItem
+    public function handle(File $file, MappedDossierItem $dossierItem): MappedDossierItem
     {
         if ($dossierItem->year) {
             return $dossierItem;

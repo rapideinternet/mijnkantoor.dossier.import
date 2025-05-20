@@ -1,4 +1,4 @@
-<?php namespace Storage;
+<?php namespace SourceFilesystem;
 
 use Carbon\Carbon;
 use Exception;

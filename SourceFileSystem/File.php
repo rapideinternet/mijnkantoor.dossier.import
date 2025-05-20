@@ -1,4 +1,4 @@
-<?php namespace Storage;
+<?php namespace SourceFilesystem;
 
 class File implements FileSystemEntryContract
 {
@@ -7,7 +7,9 @@ class File implements FileSystemEntryContract
         public $absolutePath, // this is the full path from the root of the filesystem
         public $relativePath, // this is relative to the root of the action
         public $id = null, // only for cloud storage
-        public $createdAt = null
+        public $createdAt = null,
+        public $year = null,
+        public $period = null,
     )
     {
 
@@ -16,7 +18,13 @@ class File implements FileSystemEntryContract
 public
 function __toString()
 {
-    return $this->relativePath . '/' . $this->filename;
+    $string = $this->relativePath . '/' . $this->filename;
+
+    // add year and period if available
+    if ($this->year) {
+        $string .= ' (' . implode(',', [$this->year, $this->period ?? 'none']) . ')';
+    }
+    return $string;
 }
 
 public

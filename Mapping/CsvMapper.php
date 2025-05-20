@@ -20,7 +20,12 @@ class CsvMapper
             rewind($handle);
         }
 
-        while (($line = fgetcsv($handle, 1000, ';')) !== false) {
+        while (($line = fgetcsv(
+                stream: $handle,
+                length: 1000,
+                separator: ';',
+                escape: '"',
+            )) !== false) {
             $mapping->add($line[0], $line[1]);
         }
         fclose($handle);

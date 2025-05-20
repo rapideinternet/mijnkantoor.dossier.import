@@ -1,4 +1,4 @@
-<?php namespace Storage;
+<?php namespace SourceFilesystem;
 
 use DirectoryIterator;
 use Exception;

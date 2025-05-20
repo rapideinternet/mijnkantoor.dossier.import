@@ -1,5 +1,6 @@
 <?php namespace MijnKantoor;
 
+use Carbon\Carbon;
 use GuzzleHttp\Client;
 
 class ApiClient
@@ -9,7 +10,7 @@ class ApiClient
 
     public function __construct(protected $config)
     {
-        $required = ['access_token', 'tenant'];
+        $required = ['access_token', 'tenant', 'base_uri'];
         foreach ($required as $key) {
             if (!isset($this->config[$key])) {
                 throw new \Exception("Missing required config key: $key");
@@ -64,7 +65,7 @@ class ApiClient
         return @json_decode($response->getBody()->getContents()) ?? null;
     }
 
-    public function allDirectoriesWithParentAndPath($limit = 1000): array
+    public function allDirectoriesWithParentAndPath($limit = 1000, $byId = false): array
     {
         $cacheKey = 'directories_' . $limit;
 
@@ -98,7 +99,8 @@ class ApiClient
         $result = [];
         foreach ($directories as $dir) {
             $path = $buildPath($dir->id);
-            $result[strtolower($path)] = new DossierDirectory(
+
+            $result[strtolower($byId ? $dir->id : $path)] = new DossierDirectory(
                 id: $dir->id,
                 parent_id: $dir->parent_id,
                 is_leaf: $dir->is_leaf,
@@ -106,9 +108,6 @@ class ApiClient
                 path: $path,
             );
         }
-
-        // sorty by alphabetical order
-        ksort($result);
 
         // Cache the result
         $this->cache[$cacheKey] = $result;
@@ -156,6 +155,11 @@ class ApiClient
 
             $customer->number = ltrim($customer->number, '0');
 
+            // give warning if key already exists
+            if (isset($customers[$customer->$key])) {
+                throw new \Exception("Duplicate customer key found: " . $customer->$key);
+            }
+
             $customers[$customer->$key] = new Customer(
                 id: $customer->id,
                 name: $customer->name,
@@ -177,5 +181,39 @@ class ApiClient
     public function createCustomer($data)
     {
         $this->call('post', '/customers', $data);
+    }
+
+    public function allDossierItemsByCustomer($customerId)
+    {
+        $page = 0;
+        $limit = 100;
+
+        do {
+            $url = "/search/dossier_items?customer_id={$customerId}&page={$page}&limit={$limit}&orderBy=created_at&sortedBy=desc";
+
+            $response = $this->call('get', $url);
+
+            foreach ($response->data ?? [] as $item) {
+                yield new DossierItem(
+                    id: $item->id,
+                    original_filename: $item->original_filename,
+                    name: $item->name,
+                    dossier_directory_id: $item->dossier_directory_id,
+                    customer_id: $item->customer_id,
+                    created_at: Carbon::parse($item->created_at),
+                    year: $item->year,
+                    period: $item->period,
+                );
+            }
+
+            $paginationLinks = $response->meta->pagination->links->next ?? null;
+            $page++;
+        } while ($paginationLinks);
+    }
+
+    public function downloadDossierItem($id)
+    {
+        $response = $this->call('get', "/dossier_items/{$id}/download");
+        return $response->getBody()->getContents();
     }
 }
