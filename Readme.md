@@ -245,3 +245,5 @@ $migrator = new Migrator(
 $migrator->migrate("/"); // the root directory of the customer directories discovered in step 1.3
 ```
 ⚠️ Note, as the migrator uses the same filesystem adapter as the mapping generator, it will also use the processed_item.log file to resume from where it left off (which is the end).  So you want to delete this file.
+
+⚠️ Note, all unmappable customers will be placed in unmappable_customers.log 
