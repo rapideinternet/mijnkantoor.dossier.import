@@ -61,13 +61,17 @@ class ApiClient
             throw new \Exception("Failed to call $method $url: " . $e->getMessage());
         }
 
+        // if content type not json, return the raw response
+        if (!str_contains($response->getHeader('Content-Type')[0], 'application/json')) {
+            return $response->getBody()->getContents();
+        }
 
         return @json_decode($response->getBody()->getContents()) ?? null;
     }
 
-    public function allDirectoriesWithParentAndPath($limit = 1000, $byId = false): array
+    public function allDirectoriesWithParentAndPath($limit = 1000, $byId = false, $customerId = null): array
     {
-        $cacheKey = 'directories_' . $limit;
+        $cacheKey = 'directories_' . $customerId. '_' . $limit;
 
         // Fetch from cache if available
         if (isset($this->cache[$cacheKey])) {
@@ -75,7 +79,12 @@ class ApiClient
         }
 
         // Fetch the directories
-        $response = $this->call('get', '/dossier_directories?limit=' . $limit);
+        if ($customerId) {
+            $response = $this->call('get', '/customers/' . $customerId . '/dossier_directories?limit=' . $limit);
+        } else {
+            $response = $this->call('get', '/dossier_directories?limit=' . $limit);
+        }
+
 
         // Convert data to an associative array for faster lookup
         $directories = $response->data ?? [];
@@ -213,7 +222,6 @@ class ApiClient
 
     public function downloadDossierItem($id)
     {
-        $response = $this->call('get', "/dossier_items/{$id}/download");
-        return $response->getBody()->getContents();
+        return $this->call('get', "/dossier_items/{$id}/download");
     }
 }

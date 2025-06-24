@@ -4,6 +4,9 @@ use Exception;
 use MijnKantoor\MappedDossierItem;
 use SourceFilesystem\File;
 
+/*
+ * This mutator extracts the year from the filename of the file object
+ */
 class YearFromFilename implements MutatorContract
 {
     public function __construct()

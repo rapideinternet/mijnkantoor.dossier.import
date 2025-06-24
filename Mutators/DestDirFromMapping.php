@@ -2,17 +2,22 @@
 
 use Exception;
 use Exceptions\CustomerNotFoundException;
+use Mapping\CsvMapper;
 use Mapping\Mapping;
 use MijnKantoor\MappedDossierItem;
 use SourceFilesystem\File;
 
+/*
+ * This mutator determines the destination directory for a file based on a mapping file provided by the customer.
+ */
 class DestDirFromMapping implements MutatorContract
 {
 
+    protected Mapping $mapping;
 
-    public function __construct(protected Mapping $mapping, protected $fallBackDir = null)
+    public function __construct(string $path, protected $fallBackDir = null)
     {
-
+        $this->mapping = (new CsvMapper($path))->getMapping();
     }
 
     public function handle(File $file, MappedDossierItem $dossierItem): MappedDossierItem
@@ -30,7 +35,7 @@ class DestDirFromMapping implements MutatorContract
 
 
         // find the mapping
-        foreach ($this->mapping->getMapping() as $sourceDir => $destDir) {
+        foreach ($this->mapping as $sourceDir => $destDir) {
 
             // normalize the paths
             $destDir = trim($destDir, '/');
@@ -53,8 +58,34 @@ class DestDirFromMapping implements MutatorContract
         // when no mapping is found, use the fallback dir
         if ($this->fallBackDir) {
             $dossierItem->destDir = $this->fallBackDir;
+
+            // also sluggify the source dir and prefix it to the filename to have some reference
+            $dossierItem->filename = $this->slugify($file->relativePath) . '-' . $dossierItem->filename;
         }
 
         return $dossierItem;
     }
+
+    function slugify(string $text): string {
+        // Replace non-letter or digits by -
+        $text = preg_replace('~[^\pL\d]+~u', '-', $text);
+
+        // Transliterate (convert to ASCII)
+        $text = iconv('utf-8', 'us-ascii//TRANSLIT', $text);
+
+        // Remove unwanted characters
+        $text = preg_replace('~[^-\w]+~', '', $text);
+
+        // Trim
+        $text = trim($text, '-');
+
+        // Remove duplicate -
+        $text = preg_replace('~-+~', '-', $text);
+
+        // Lowercase
+        $text = strtolower($text);
+
+        return empty($text) ? 'n-a' : $text;
+    }
+
 }

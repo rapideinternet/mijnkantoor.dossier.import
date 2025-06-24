@@ -4,6 +4,9 @@ use Exception;
 use MijnKantoor\MappedDossierItem;
 use SourceFilesystem\File;
 
+/*
+ * This mutator extracts the year from source path segments.
+ */
 class YearFromSourcePath implements MutatorContract
 {
     public function __construct()

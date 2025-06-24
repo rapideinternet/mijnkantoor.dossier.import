@@ -6,10 +6,12 @@ use Mapping\Mapping;
 use MijnKantoor\MappedDossierItem;
 use SourceFilesystem\File;
 
+/*
+ * This mutator can be used to implement custom destination directories based on regex rules.
+ * For example, when customer want's to determine the destination directory based on certain parts in the filename.
+ */
 class DestDirFromRegex implements MutatorContract
 {
-
-
     public function __construct(protected array $rules)
     {
 

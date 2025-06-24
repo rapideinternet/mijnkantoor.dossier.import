@@ -16,9 +16,15 @@ class CustomerNumberAndRelativePathByRegex implements MutatorContract
 
     public function handle(File $file, MappedDossierItem $dossierItem): MappedDossierItem
     {
+        $requiredMatches = ['number', 'relativePath', 'name'];
         if (preg_match($this->pattern, $file->absolutePath, $matches)) {
-            $dossierItem->customerNumber = ltrim($matches['number'], '0');
+            foreach($requiredMatches as $match) {
+                if (!isset($matches[$match])) {
+                    throw new CustomerNotFoundException("Required match '$match' not found in path: " . $file->absolutePath);
+                }
+            }
 
+            $dossierItem->customerNumber = ltrim($matches['number'], '0');
             $dossierItem->relativeSourceDir = $matches['relativePath'];
 
 

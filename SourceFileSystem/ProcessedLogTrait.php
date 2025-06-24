@@ -42,7 +42,7 @@ trait ProcessedLogTrait
 
     public function itemProcessed($key): bool
     {
-        $dir = md5($key);
+        $key = md5($key);
 
         return isset($this->processedItems[$key]);
     }

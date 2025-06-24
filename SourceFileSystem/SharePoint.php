@@ -16,7 +16,23 @@ class SharePoint implements FilesystemContract
 
     public function __construct(protected array $config = [])
     {
-        // @todo: validate config
+
+    }
+
+    public function listSites()
+    {
+        $this->fetchTokenIfNeeded();
+
+        $url = "https://graph.microsoft.com/v1.0/sites?search=*&\$top=1000";
+
+        $response = $this->call('get', $url);
+
+        $sites = [];
+        foreach (@json_decode($response->getBody()->getContents())->value ?? [] as $site) {
+            $sites[$site->name] = $site->id;
+        }
+
+        return $sites;
     }
 
     /*
@@ -92,9 +108,13 @@ class SharePoint implements FilesystemContract
      * @return \Generator
      * @throws GuzzleException
      */
-    public function traverse(string $root = null): \Generator
+    public function traverse(string|null $root = null): \Generator
     {
         $siteId = $this->config['site_id'] ?? null;
+
+        if (!$siteId) {
+            throw new Exception("SiteID not set");
+        }
 
         $driveId = $this->getDriveId($siteId);
 
@@ -206,6 +226,11 @@ class SharePoint implements FilesystemContract
     public function getContent(File $file): string
     {
         $siteId = $this->config['site_id'] ?? null;
+
+        if (!$siteId) {
+            throw new Exception("SiteID not set");
+        }
+
         $driveId = $this->getDriveId($siteId);
 
         // try catch try 3 times
@@ -225,6 +250,10 @@ class SharePoint implements FilesystemContract
     public function list($root)
     {
         $siteId = $this->config['site_id'] ?? null;
+
+        if (!$siteId) {
+            throw new Exception("SiteID not set");
+        }
 
         $driveId = $this->getDriveId($siteId);
 

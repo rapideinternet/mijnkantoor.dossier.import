@@ -4,6 +4,9 @@ use Exception;
 use MijnKantoor\MappedDossierItem;
 use SourceFilesystem\File;
 
+/*
+ * This mutator extracts the period from the source path of the file.
+ */
 class PeriodFromSourcePath implements MutatorContract
 {
     public function __construct()

@@ -26,16 +26,14 @@ class MijnKantoor implements FilesystemContract
         // take of where we left off by skipping the already processed directories
         $this->loadProcessedItemLog();
 
-        $dirs = $this->client->allDirectoriesWithParentAndPath(10000, true);
-
 
         foreach ($this->client->allCustomerByNumber() as $customer) {
-            if ($customer->number != "140") {
-                continue;
-            }
+
+            $dirs = $this->client->allDirectoriesWithParentAndPath(10000, true, $customer->id);
 
             // Fetch all files for the customer
             foreach ($this->client->allDossierItemsByCustomer($customer->id) as $item) {
+
                 if ($this->itemProcessed($item->id)) {
                     if ($debug) {
                         echo "\tWarning: Skipping (already processed)\n";
@@ -45,9 +43,8 @@ class MijnKantoor implements FilesystemContract
 
                 $relativePath = $customer->number . ' - ' . $customer->name . '/' . ($dirs[$item->dossier_directory_id]->path ?? "directory_not_found");
 
-
                 yield (new File(
-                    filename: $item->original_filename,
+                    filename: $item->name, // customer may have changed the original filename
                     absolutePath: $relativePath, // there is no absolute path in the API
                     relativePath: $relativePath,
                     id: $item->id,

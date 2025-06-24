@@ -54,6 +54,8 @@ class MultiUploader
                     'multipart' => $data,
                     'headers' => $headers,
                     'verify' => false,
+                    'timeout' => 60, // seconds
+                    'connect_timeout' => 30, // seconds
                 ],
             );
         };

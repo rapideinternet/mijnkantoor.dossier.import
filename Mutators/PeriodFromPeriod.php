@@ -4,6 +4,10 @@ use Exception;
 use MijnKantoor\MappedDossierItem;
 use SourceFilesystem\File;
 
+/*
+ * This mutator copies the period from the file object to the dossier item.
+ * Only for MijnKantoor as source, as it has a period property.
+ */
 class PeriodFromPeriod implements MutatorContract
 {
     public function __construct()

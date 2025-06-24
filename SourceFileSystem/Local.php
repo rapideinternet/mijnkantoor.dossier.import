@@ -40,6 +40,7 @@ class Local implements FilesystemContract
 
         foreach ($iterator as $item) {
 
+
             $logKey = $item->getPath();
 
             if ($item->isFile()) {
