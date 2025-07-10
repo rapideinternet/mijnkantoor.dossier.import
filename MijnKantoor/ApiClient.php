@@ -37,7 +37,7 @@ class ApiClient
         ];
     }
 
-    public function call($method, $url, $data = [], $encode = 'json')
+    public function call($method, $url, $data = [], $encode = 'json', $retries = 1, $delaySeconds = 1)
     {
         $client = new Client();
         $options = $this->getOptions();
@@ -50,24 +50,40 @@ class ApiClient
 
         $url = trim($this->config['base_uri'], '/') . '/' . trim($url, '/');
 
-        try {
-            $response = $client->request($method, $url, $options);
-        } catch (\Exception $e) {
-            // if 401 or 403, prompt user to update the token
-            if ($e->getCode() === 401 || $e->getCode() === 403) {
-                throw new \Exception("Unauthorized. Please update the access token.");
+        $attempt = 0;
+        do {
+            try {
+                $response = $client->request($method, $url, $options);
+
+                // Check for non-JSON response early
+                if (!str_contains($response->getHeader('Content-Type')[0], 'application/json')) {
+                    return $response->getBody()->getContents();
+                }
+
+                return @json_decode($response->getBody()->getContents()) ?? null;
+
+            } catch (\Exception $e) {
+                $attempt++;
+
+                // Critical errors: don't retry
+                if ($e->getCode() === 401 || $e->getCode() === 403) {
+                    throw new \Exception("Unauthorized. Please update the access token.");
+                }
+
+                // Retryable error: retry if attempts remain
+                if ($attempt >= $retries) {
+                    throw new \Exception("Failed to call $method $url after $retries attempts: " . $e->getMessage());
+                }
+
+                // Optional: sleep before retry
+                sleep($delaySeconds);
             }
+        } while ($attempt < $retries);
 
-            throw new \Exception("Failed to call $method $url: " . $e->getMessage());
-        }
-
-        // if content type not json, return the raw response
-        if (!str_contains($response->getHeader('Content-Type')[0], 'application/json')) {
-            return $response->getBody()->getContents();
-        }
-
-        return @json_decode($response->getBody()->getContents()) ?? null;
+        // Shouldn't reach here
+        return null;
     }
+
 
     public function allDirectoriesWithParentAndPath($limit = 1000, $byId = false, $customerId = null): array
     {
@@ -198,7 +214,7 @@ class ApiClient
         $limit = 100;
 
         do {
-            $url = "/search/dossier_items?customer_id={$customerId}&page={$page}&limit={$limit}&orderBy=created_at&sortedBy=desc";
+            $url = "/search/dossier_items?customer_id={$customerId}&show_children=1&page={$page}&limit={$limit}&orderBy=created_at&sortedBy=desc";
 
             $response = $this->call('get', $url);
 
@@ -212,10 +228,12 @@ class ApiClient
                     created_at: Carbon::parse($item->created_at),
                     year: $item->year,
                     period: $item->period,
+                    parentId: $item->parent_id ?? null,
                 );
             }
 
             $paginationLinks = $response->meta->pagination->links->next ?? null;
+
             $page++;
         } while ($paginationLinks);
     }
@@ -223,5 +241,24 @@ class ApiClient
     public function downloadDossierItem($id)
     {
         return $this->call('get', "/dossier_items/{$id}/download");
+    }
+
+    public function dossierItemExistsByCustomerNumberAndFilename(string $customerNumber, string $filename): bool
+    {
+        $customers = $this->allCustomerByKey('number');
+        $customerId = $customers[$customerNumber]->id ?? null;
+
+        if (!$customerId) {
+            return false; // Customer not found
+        }
+
+        $query = urlencode($filename);
+        $response = $this->call(
+            method: 'get',
+            url: "/search/dossier_items?customer_id={$customerId}&query={$query}",
+            retries: 3
+        );
+
+        return isset($response->data) && count($response->data);
     }
 }

@@ -26,9 +26,7 @@ class MijnKantoor implements FilesystemContract
         // take of where we left off by skipping the already processed directories
         $this->loadProcessedItemLog();
 
-
         foreach ($this->client->allCustomerByNumber() as $customer) {
-
             $dirs = $this->client->allDirectoriesWithParentAndPath(10000, true, $customer->id);
 
             // Fetch all files for the customer
@@ -51,6 +49,7 @@ class MijnKantoor implements FilesystemContract
                     createdAt: Carbon::parse($item->created_at),
                     year: $item->year,
                     period: $item->period,
+                    parentId: $item->parentId ?? null,
                 ));
 
                 $this->addItemToProcessedLog($item->id);

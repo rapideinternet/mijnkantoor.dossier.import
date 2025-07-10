@@ -15,7 +15,8 @@ class Migrator
         protected $customerWhitelist = [],
         protected $customerBlacklist = [],
         protected $deHammerCustomerDirBuffer = [],
-        protected bool $dryRun = true
+        protected bool $dryRun = true,
+        protected bool $deDup = false
     )
     {
 
@@ -34,6 +35,7 @@ class Migrator
             // create the target dossier item for MijnKantoor
             $dossierItem = new MappedDossierItem(
                 filename: $file->filename,
+                sourceFilename: $file->filename,
             );
 
             // run the mutators to enrich the dossierItem object
@@ -67,6 +69,17 @@ class Migrator
             // target folder needs to be set by now
             if (!$dossierItem->destDir) {
                 throw new Exception('Destination dir not set for file: ' . $file);
+            }
+
+            if($this->deDup) {
+                echo "\tChecking if filename " . $dossierItem->filename . " already exists for customer " . $dossierItem->customerNumber . PHP_EOL;
+                if($this->mkClient->dossierItemExistsByCustomerNumberAndFilename(
+                    customerNumber: $dossierItem->customerNumber,
+                    filename: $dossierItem->filename,
+                )) {
+                    echo "\t\tSkipping file: " . $file->relativePath . " because it already exists in MijnKantoor." . PHP_EOL;
+                    continue;
+                }
             }
 
             // translate the customer number to customer id
@@ -108,8 +121,7 @@ class Migrator
                 continue;
             }
 
-            // upload the file to MijnKantoor asynchronously
-            $this->mkClient->uploadAsync([
+            $data = [
                 'resource' => $content,
                 'customer_id' => $dossierItem->customerId,
                 'dossier_directory_id' => $dossierItem->destDirId,
@@ -118,7 +130,15 @@ class Migrator
                 'period' => $dossierItem->period,
                 'created_at' => $file->createdAt ? $file->createdAt->timestamp : null,
                 'suppress_async' => '1', // prevents heavy directory calculations on the server
-            ]);
+            ];
+
+            // only add parent_id if it is set
+            if($dossierItem->parentId ?? null) {
+                $data['parent_id'] = $dossierItem->parentId;
+            }
+
+            // upload the file to MijnKantoor asynchronously
+            $this->mkClient->uploadAsync($data);
 
             // when this is the first time this customer dir is encountered, do a little sleep to prevent hammering the server
             // when sharepoint is called to soon after first attempt, duplicate folders will be created

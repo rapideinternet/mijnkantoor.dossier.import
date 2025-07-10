@@ -10,6 +10,7 @@ class File implements FileSystemEntryContract
         public $createdAt = null,
         public $year = null,
         public $period = null,
+        public $parentId = null, // only for cloud storage
     )
     {
 

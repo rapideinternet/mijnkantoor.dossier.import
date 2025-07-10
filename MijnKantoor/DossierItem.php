@@ -11,6 +11,7 @@ class DossierItem
         public $created_at = null,
         public $year = null,
         public $period = null,
+        public $parentId = null,
     )
     {
 
