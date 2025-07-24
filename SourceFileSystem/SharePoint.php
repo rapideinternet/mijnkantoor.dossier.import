@@ -128,7 +128,7 @@ class SharePoint implements FilesystemContract
 
     protected function fetchFilesRecursively($root, $driveId, $folderId): \Generator
     {
-        $filesUrl = "https://graph.microsoft.com/v1.0/drives/$driveId/items/$folderId/children";
+        $filesUrl = "https://graph.microsoft.com/v1.0/drives/$driveId/items/$folderId/children?\$top=900";
 
         $debug = $this->config['debug'] ?? false;
 

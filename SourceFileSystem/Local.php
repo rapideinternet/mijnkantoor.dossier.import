@@ -1,5 +1,6 @@
 <?php namespace SourceFilesystem;
 
+use Carbon\Carbon;
 use DirectoryIterator;
 use Exception;
 use FilesystemIterator;
@@ -40,15 +41,21 @@ class Local implements FilesystemContract
 
         foreach ($iterator as $item) {
 
-
-            $logKey = $item->getPath();
-
-            if ($item->isFile()) {
-               $logKey .= '/' . $item->getFilename();
+            // ignore Thumbs.db files and other system files
+            if (str_ends_with($item->getFilename(), 'Thumbs.db') || str_ends_with($item->getFilename(), '.DS_Store')) {
+                continue;
             }
 
+            // filter out hidden lock files from microsoft office
+            if (str_starts_with($item->getFilename(), '~$') || str_starts_with($item->getFilename(), '.~')) {
+                continue;
+            }
+
+             $logKey = $item->getPath() . '/' . $item->getFilename();
+
+
             if ($this->itemProcessed($logKey)) {
-                echo "\tSkipping (already processed)\n";
+                echo "\tSkipping (already processed: ".$logKey." - ".md5($logKey).")\n";
                 continue;
             }
 
@@ -64,6 +71,7 @@ class Local implements FilesystemContract
                         filename: $item->getFilename(),
                         absolutePath: $path,
                         relativePath: substr($path, strlen($root) + 1),
+                        createdAt: Carbon::parse($item->getCTime()),
                     );
                 }
             } catch (Exception $e) {

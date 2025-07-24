@@ -178,8 +178,6 @@ class ApiClient
                 continue;
             }
 
-            $customer->number = ltrim($customer->number, '0');
-
             // give warning if key already exists
             if (isset($customers[$customer->$key])) {
                 throw new \Exception("Duplicate customer key found: " . $customer->$key);

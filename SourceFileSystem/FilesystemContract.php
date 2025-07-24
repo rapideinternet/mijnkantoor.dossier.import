@@ -23,4 +23,6 @@ interface FilesystemContract {
      * @return string
      */
     public function getContent(File $file) : string;
+
+
 }

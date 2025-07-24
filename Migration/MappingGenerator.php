@@ -41,12 +41,6 @@ class MappingGenerator
                     continue;
                 }
 
-                // if customer blacklist is set, skip all blacklisted customers
-                if (in_array($customerIdentifier, $this->customerBlacklist)) {
-                    echo "Skipping blacklisted customer: " . $customerIdentifier . PHP_EOL;
-                    continue;
-                }
-
                 // match first number starting with 20 and exactly 4 digits
                 // replace first occurrence of 20\d{2} with {year}
                 // @todo, make dynamic

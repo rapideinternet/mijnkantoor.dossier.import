@@ -3,3 +3,4 @@ cases/*
 vendor
 *.log
 .DS_Store
+vendor.zip

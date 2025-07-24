@@ -9,7 +9,7 @@ class CustomerNumberAndRelativePathByRegex implements MutatorContract
 {
     use ValidateCustomerAndPathRegexTrait;
 
-    public function __construct(protected string $pattern)
+    public function __construct(protected string $pattern, protected $lTrim = false)
     {
         $this->validateCustomerAndPathRegex($pattern);
     }
@@ -24,7 +24,11 @@ class CustomerNumberAndRelativePathByRegex implements MutatorContract
                 }
             }
 
-            $dossierItem->customerNumber = ltrim($matches['number'], '0');
+            if ($this->lTrim) {
+                $matches['number'] = ltrim($matches['number'], '0');
+            }
+
+            $dossierItem->customerNumber = $matches['number'];
             $dossierItem->relativeSourceDir = $matches['relativePath'];
 
 

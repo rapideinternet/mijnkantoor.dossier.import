@@ -5,6 +5,7 @@ use Exception;
 use Exceptions\CustomerNotFoundException;
 use MijnKantoor\ApiClient;
 use MijnKantoor\MappedDossierItem;
+use SourceFilesystem\File;
 
 class Migrator
 {
@@ -16,13 +17,14 @@ class Migrator
         protected $customerBlacklist = [],
         protected $deHammerCustomerDirBuffer = [],
         protected bool $dryRun = true,
-        protected bool $deDup = false
+        protected bool $deDup = false,
+        protected bool $stopOnUnmappableDirectory = true,
     )
     {
 
     }
 
-    public function migrate(string | null $root = null): bool
+    public function migrate(string|null $root = null): bool
     {
         $targetDirectories = $this->mkClient->allDirectoriesWithParentAndPath();
 
@@ -68,12 +70,17 @@ class Migrator
 
             // target folder needs to be set by now
             if (!$dossierItem->destDir) {
-                throw new Exception('Destination dir not set for file: ' . $file);
+                if ($this->stopOnUnmappableDirectory) {
+                    throw new Exception('Destination dir not set for file: ' . $file);
+                }
+
+                $this->logUnprocessableFile($dossierItem->customerNumber, $file);
+                continue;
             }
 
-            if($this->deDup) {
+            if ($this->deDup) {
                 echo "\tChecking if filename " . $dossierItem->filename . " already exists for customer " . $dossierItem->customerNumber . PHP_EOL;
-                if($this->mkClient->dossierItemExistsByCustomerNumberAndFilename(
+                if ($this->mkClient->dossierItemExistsByCustomerNumberAndFilename(
                     customerNumber: $dossierItem->customerNumber,
                     filename: $dossierItem->filename,
                 )) {
@@ -96,7 +103,17 @@ class Migrator
             $dossierItem->customerId = $customerId->id;
 
             // translate the destination directory to the id
-            $dossierDirectory = $targetDirectories[strtolower($dossierItem->destDir)] ?? throw new Exception('Destination dir not found: ' . $dossierItem->destDir);
+            $dossierDirectory = $targetDirectories[strtolower($dossierItem->destDir)];
+
+            if (!$dossierDirectory) {
+                if ($this->stopOnUnmappableDirectory) {
+                    throw new Exception("Destination directory not found for: " . $dossierItem->destDir);
+                }
+
+                $this->logUnprocessableFile($dossierItem->customerNumber, $file);
+                continue;
+            }
+
             $dossierItem->destDirId = $dossierDirectory->id;
 
             echo "\tUploading" . PHP_EOL;
@@ -111,7 +128,7 @@ class Migrator
             // get the file content
             try {
                 $content = $this->fileSystem->getContent($file);
-            } catch(Exception $e) {
+            } catch (Exception $e) {
                 echo "\tWarning: error fetching content for file: " . $file->relativePath . PHP_EOL;
                 continue;
             }
@@ -133,7 +150,7 @@ class Migrator
             ];
 
             // only add parent_id if it is set
-            if($dossierItem->parentId ?? null) {
+            if ($dossierItem->parentId ?? null) {
                 $data['parent_id'] = $dossierItem->parentId;
             }
 
@@ -155,6 +172,20 @@ class Migrator
         $this->mkClient->finalizeUploads();
 
         return true;
+    }
+
+    private function logUnprocessableFile(string $customerNumber, File $file)
+    {
+
+        // log the item that could not be mapped
+        echo "\tWarning: destination directory not found for: " . $file;
+
+        // @todo, move path to config file
+        file_put_contents(
+            "unmappable_files.log",
+            $customerNumber . ";" . $file . PHP_EOL,
+            FILE_APPEND
+        );
     }
 
 }
